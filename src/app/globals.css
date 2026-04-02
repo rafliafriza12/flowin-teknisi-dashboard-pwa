@@ -1,0 +1,105 @@
+@import url("https://fonts.googleapis.com/css2?family=Parkinsans:wght@300..800&display=swap");
+@import "tailwindcss";
+@theme inline {
+  --font-parkinsans: "Parkinsans", sans-serif;
+
+  --color-neutral-01: #ffffff;
+  --color-neutral-02: #000000;
+  --color-success: #40c4aa;
+  --color-warning: #ffb200;
+  --color-error: #df1c41;
+  --color-grey: #707070;
+  --color-grey-stroke: #f0f0f0;
+  --color-grey-light: #f7f7f7;
+  --color-grey-lightest: #fafafa;
+  --color-earn-craft-light: #f5f7f2;
+  --color-green-primary: #a0ac67;
+  --color-charcoal-green: #225442;
+  --color-charcoal-green-dark: #0f1714;
+  --color-charcoal-green-light: #334239;
+  --color-charcoal-green-lighter: #225442;
+  --color-white-mineral: #e6e6e6;
+  --color-moss-stone: #a0ac67;
+  --color-alert-warning: #966422;
+  --color-earth-craft: #cad4ba;
+
+  --spacing-sidebar-width: 260px;
+  --spacing-topbar-height: 80px;
+
+  --animate-ripple: ripple var(--duration, 2s) ease calc(var(--i, 0) * 0.2s)
+    infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.thinnest-scrollbar::-webkit-scrollbar {
+  width: 2.6px;
+  height: 2.6px;
+}
+
+.thinnest-scrollbar::-webkit-scrollbar-track {
+  background: rgba(160, 172, 103, 0.4);
+  border-radius: 10px;
+  width: 2.6px;
+  height: 2.6px;
+}
+
+.thinnest-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(160, 172, 103, 1);
+  width: 2.6px;
+  height: 2.6px;
+  border-radius: 10px;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: rgba(160, 172, 103, 0.4);
+  border-radius: 10px;
+  width: 4px;
+  height: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(160, 172, 103, 1);
+  width: 4px;
+  height: 4px;
+  border-radius: 10px;
+}
+
+button {
+  cursor: pointer;
+}
+
+.Toastify__toast {
+  font-family: "Parkinsans", sans-serif !important;
+  font-size: 14px !important; 
+}
+
+.Toastify__toast-body {
+  font-family: "Parkinsans", sans-serif !important;
+  font-size: 14px !important; 
+}
+
+@keyframes ripple {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}

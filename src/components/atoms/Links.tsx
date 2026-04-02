@@ -1,0 +1,32 @@
+import Link from "next/link";
+interface ILinks {
+  text: string;
+  link: string;
+  className?: string;
+}
+const Links: React.FC<ILinks> = ({ className, link, text }) => {
+  return (
+    <Link
+      href={link}
+      className={`flex items-center gap-3 py-3 px-4 rounded-[4px] font-parkinsans border-[1px] border-moss-stone group hover:bg-green-primary duration-200 ${className}`}
+    >
+      <h1 className="font-medium text-sm group-hover:text-white-mineral">{text}</h1>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M6.75 5.0625C6.43934 5.0625 6.1875 4.81066 6.1875 4.5C6.1875 4.18934 6.43934 3.9375 6.75 3.9375H13.5C13.8107 3.9375 14.0625 4.18934 14.0625 4.5V11.25C14.0625 11.5607 13.8107 11.8125 13.5 11.8125C13.1893 11.8125 12.9375 11.5607 12.9375 11.25V5.85799L4.89775 13.8977C4.67808 14.1174 4.32192 14.1174 4.10225 13.8977C3.88258 13.6781 3.88258 13.3219 4.10225 13.1023L12.142 5.0625H6.75Z"
+          className="fill-green-primary group-hover:fill-white-mineral duration-200"
+        />
+      </svg>
+    </Link>
+  );
+};
+
+export default Links;
