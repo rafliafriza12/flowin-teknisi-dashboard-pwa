@@ -69,11 +69,7 @@ function scoreItem(item: SearchableItem, query: string): number {
 
 export const SearchBar = () => {
   const router = useRouter();
-  const {
-    hasPermission,
-    canReadContent,
-    isLoading: isLoadingPermissions,
-  } = usePermissions();
+  const { isTechnician, isLoading: isLoadingPermissions } = usePermissions();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,13 +82,10 @@ export const SearchBar = () => {
   // ── permission-filtered items (computed once when perms load) ──
   const allowedItems = useMemo(() => {
     if (isLoadingPermissions) return [];
-
-    return searchableItems.filter((item) => {
-      if (!item.permission) return true;
-      if (item.permission === "readAllContent") return canReadContent;
-      return hasPermission(item.permission);
-    });
-  }, [isLoadingPermissions, canReadContent, hasPermission]);
+    // Semua item ditampilkan untuk Teknisi yang sudah login
+    if (isTechnician) return searchableItems;
+    return searchableItems.filter((item) => !item.category); // hanya Dashboard & Profile
+  }, [isLoadingPermissions, isTechnician]);
 
   // ── search results ─────────────────────────────────────────────
   const results = useMemo(() => {
@@ -142,16 +135,12 @@ export const SearchBar = () => {
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setActiveIndex((prev) =>
-          prev < results.length - 1 ? prev + 1 : 0,
-        );
+        setActiveIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
         break;
 
       case "ArrowUp":
         e.preventDefault();
-        setActiveIndex((prev) =>
-          prev > 0 ? prev - 1 : results.length - 1,
-        );
+        setActiveIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
         break;
 
       case "Enter":

@@ -26,7 +26,6 @@ export interface AuthUser {
   fullname: string;
   username: string;
   email: string;
-  role: string;
   isActive: boolean;
   lastOnline: string | null;
   createdAt: string;
@@ -49,7 +48,6 @@ export interface RegisterInput {
   username: string;
   email: string;
   password: string;
-  role: string;
 }
 
 export interface ChangePasswordInput {
@@ -131,7 +129,7 @@ export function useMe() {
     undefined,
     {
       retry: false,
-    }
+    },
   );
 }
 
@@ -148,7 +146,7 @@ export function useLogin() {
       // Simpan tokens setelah login berhasil (Server Action)
       await setAuthCookies(
         data.login.tokens.accessToken,
-        data.login.tokens.refreshToken
+        data.login.tokens.refreshToken,
       );
       // Clear semua cache query setelah login
       queryClient.clear();
@@ -169,12 +167,12 @@ export function useRegister() {
         // Simpan tokens setelah register berhasil (Server Action)
         await setAuthCookies(
           data.register.tokens.accessToken,
-          data.register.tokens.refreshToken
+          data.register.tokens.refreshToken,
         );
         // Clear semua cache query
         queryClient.clear();
       },
-    }
+    },
   );
 }
 

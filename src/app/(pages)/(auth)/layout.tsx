@@ -1,14 +1,21 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { jwtVerify } from "jose";
 
 const AuthLayout = async ({ children }: { children: React.ReactNode }) => {
   const cookieStore = await cookies();
   const token = cookieStore.get("access_token")?.value;
-  const refreshToken = cookieStore.get("refresh_token")?.value;
 
-  // Jika sudah ada token, langsung redirect ke dashboard ("/")
-  if (token || refreshToken) {
-    redirect("/");
+  // Hanya redirect ke dashboard jika access_token VALID (signature + belum expired)
+  if (token) {
+    try {
+      const secret = new TextEncoder().encode(process.env.JWT_ACCESS_SECRET);
+      await jwtVerify(token, secret);
+      // Token valid → user sudah login, redirect ke dashboard
+      redirect("/");
+    } catch {
+      // Token expired / invalid → biarkan tampil halaman login
+    }
   }
 
   return (

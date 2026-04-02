@@ -5,9 +5,9 @@ import VisitorInformations from "@/components/organisms/dashboard/VisitorInforma
 const DashboardPageTemplate = () => {
   return (
     <div className="w-full flex flex-col gap-4">
-      <HeaderAndStats />
+      {/* <HeaderAndStats />
       <VisitorInformations />
-      <DirectContent />
+      <DirectContent /> */}
     </div>
   );
 };

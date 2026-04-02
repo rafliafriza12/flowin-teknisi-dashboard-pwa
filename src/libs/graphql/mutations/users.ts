@@ -7,7 +7,6 @@ export const CREATE_USER = `
         fullname
         username
         email
-        role
         isActive
         lastOnline
         createdAt
@@ -24,7 +23,6 @@ export const UPDATE_USER = `
         fullname
         username
         email
-        role
         isActive
         lastOnline
         createdAt
@@ -49,22 +47,4 @@ export const TOGGLE_USER_STATUS = `
         message
     }
 }
-`;
-
-export const ADD_USER_ROLE = `
-  mutation AddUserRole($role: String!) {
-    addUserRole(role: $role) {
-      id
-      roles
-    }
-  }
-`;
-
-export const REMOVE_USER_ROLE = `
-  mutation RemoveUserRole($role: String!) {
-    removeUserRole(role: $role) {
-      id
-      roles
-    }
-  }
 `;

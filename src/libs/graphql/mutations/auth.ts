@@ -10,7 +10,6 @@ export const LOGIN = `
         fullname
         username
         email
-        role
         isActive
         lastOnline
         createdAt
@@ -34,7 +33,6 @@ export const REGISTER = `
         fullname
         username
         email
-        role
         isActive
         lastOnline
         createdAt

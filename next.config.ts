@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+
+  // Expose env variables ke Edge Runtime (middleware)
+  env: {
+    JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET,
+  },
+
   images: {
     remotePatterns: [
       {

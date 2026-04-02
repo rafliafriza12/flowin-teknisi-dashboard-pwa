@@ -1,22 +1,17 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { usePermissions } from "@/providers/PermissionProvider";
-import { useMemo, useEffect } from "react";
-import { IRolePermissions } from "@/services/roleService";
+import { useEffect, useMemo } from "react";
 
 interface MenuItem {
   id: string;
   label: string;
-  permission: keyof IRolePermissions;
 }
 
 const allMenuItems: MenuItem[] = [
-  { id: "general", label: "General", permission: "generalSettings" },
-  { id: "categories", label: "Categories", permission: "categoryManagement" },
-  { id: "roles", label: "Roles", permission: "roleManagement" },
-  { id: "notifications", label: "Notifications", permission: "notificationSettings" },
-  { id: "integrations", label: "Integrations", permission: "integrationSettings" },
+  { id: "general", label: "General" },
+  { id: "categories", label: "Categories" },
+  { id: "notifications", label: "Notifications" },
 ];
 
 const SettingsMenuSidebar = () => {
@@ -24,39 +19,23 @@ const SettingsMenuSidebar = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "";
-  const { hasPermission, isLoading } = usePermissions();
 
-  // Filter menu items based on user permissions
-  const menuItems = useMemo(() => {
-    return allMenuItems.filter(item => hasPermission(item.permission));
-  }, [hasPermission]);
+  const menuItems = useMemo(() => allMenuItems, []);
 
-  // Redirect to first available tab if current tab is not accessible
+  // Redirect ke tab pertama jika tab sekarang tidak ada
   useEffect(() => {
-    if (isLoading || menuItems.length === 0) return;
-    
-    const currentTabAccessible = menuItems.some(item => item.id === activeTab);
-    if (!currentTabAccessible && menuItems.length > 0) {
+    if (menuItems.length === 0) return;
+    const currentTabAccessible = menuItems.some(
+      (item) => item.id === activeTab,
+    );
+    if (!currentTabAccessible) {
       router.replace(`${pathname}?tab=${menuItems[0].id}`);
     }
-  }, [activeTab, menuItems, isLoading, pathname, router]);
+  }, [activeTab, menuItems, pathname, router]);
 
   const handleMenuClick = (tabId: string) => {
     router.push(`${pathname}?tab=${tabId}`);
   };
-
-  if (isLoading) {
-    return (
-      <div className="w-full lg:w-[220px]">
-        <div className="bg-neutral-01 rounded-[20px] p-4 shrink-0">
-          <h3 className="text-base font-medium mb-4">Settings Menu</h3>
-          <div className="flex justify-center py-4">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-moss-stone"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full lg:w-[220px]">

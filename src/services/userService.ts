@@ -1,23 +1,20 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useGraphQLQuery, useGraphQLMutation, queryKeys } from "@/libs/graphql";
-import {
-  GET_USERS,
-  GET_USER_BY_ID,
-  GET_USERS_BY_ROLE,
-  USER_SETTINGS,
-} from "@/libs/graphql/queries";
+import { GET_USERS, GET_USER_BY_ID } from "@/libs/graphql/queries";
 import {
   CREATE_USER,
   UPDATE_USER,
   DELETE_USER,
   TOGGLE_USER_STATUS,
-  ADD_USER_ROLE,
-  REMOVE_USER_ROLE,
 } from "@/libs/graphql/mutations";
-import { IUser, ICreateUserInput, IUpdateUserInput, IUserSettings, IUserSettingsResponse } from "@/types/user";
+import { IUser, ICreateUserInput, IUpdateUserInput } from "@/types/user";
 
 // Re-export User type from types file
-export type { IUser as User, ICreateUserInput as CreateUserInput, IUpdateUserInput as UpdateUserInput };
+export type {
+  IUser as User,
+  ICreateUserInput as CreateUserInput,
+  IUpdateUserInput as UpdateUserInput,
+};
 
 export interface UsersResponse {
   users: IUser[];
@@ -25,10 +22,6 @@ export interface UsersResponse {
 
 export interface UserResponse {
   user: IUser;
-}
-
-export interface UsersByRoleResponse {
-  usersByRole: IUser[];
 }
 
 export interface UserFilters {
@@ -42,7 +35,7 @@ export function useUsers(filters?: UserFilters) {
   return useGraphQLQuery<UsersResponse>(
     queryKeys.users.list(filters),
     GET_USERS,
-    filters
+    filters,
   );
 }
 
@@ -53,18 +46,7 @@ export function useUser(id: string) {
     { id },
     {
       enabled: !!id,
-    }
-  );
-}
-
-export function useUsersByRole(role: string) {
-  return useGraphQLQuery<UsersByRoleResponse>(
-    queryKeys.users.byRole(role),
-    GET_USERS_BY_ROLE,
-    { role },
-    {
-      enabled: !!role,
-    }
+    },
   );
 }
 
@@ -77,7 +59,7 @@ export function useCreateUser() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
       },
-    }
+    },
   );
 }
 
@@ -119,53 +101,6 @@ export function useToggleUserStatus() {
   >(TOGGLE_USER_STATUS, {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    },
-  });
-}
-
-// ==================== SETTINGS ====================
-
-/**
- * Hook to fetch user settings (roles)
- * @returns Query result with settings
- */
-export function useUserSettings() {
-  return useGraphQLQuery<IUserSettingsResponse>(
-    ["userSettings"],
-    USER_SETTINGS
-  );
-}
-
-/**
- * Hook to add a new user role
- * @returns Mutation function to add role
- */
-export function useAddUserRole() {
-  const queryClient = useQueryClient();
-
-  return useGraphQLMutation<
-    { addUserRole: IUserSettings },
-    { role: string }
-  >(ADD_USER_ROLE, {
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userSettings"] });
-    },
-  });
-}
-
-/**
- * Hook to remove a user role
- * @returns Mutation function to remove role
- */
-export function useRemoveUserRole() {
-  const queryClient = useQueryClient();
-
-  return useGraphQLMutation<
-    { removeUserRole: IUserSettings },
-    { role: string }
-  >(REMOVE_USER_ROLE, {
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userSettings"] });
     },
   });
 }

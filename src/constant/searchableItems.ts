@@ -1,5 +1,3 @@
-import { IRolePermissions } from "@/services/roleService";
-
 export interface SearchableItem {
   /** Display label */
   label: string;
@@ -9,18 +7,11 @@ export interface SearchableItem {
   category?: string;
   /** Keywords for fuzzy matching (hidden from UI) */
   keywords: string[];
-  /**
-   * Permission key required to see this item.
-   * - specific key → that specific permission
-   * - `undefined` → visible to everyone (e.g. Dashboard, Profile)
-   */
-  permission?: keyof IRolePermissions;
 }
 
 /**
  * Static list of every navigable destination inside the CMS.
- *
- * The order matters: earlier items rank higher when scores are equal.
+ * Semua item visible untuk Teknisi yang sudah login.
  */
 export const searchableItems: SearchableItem[] = [
   // ── Dashboard ──────────────────────────────────────────

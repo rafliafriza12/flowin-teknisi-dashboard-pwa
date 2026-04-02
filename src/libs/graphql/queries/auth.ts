@@ -7,7 +7,6 @@ export const GET_ME = `
       fullname
       username
       email
-      role
       isActive
       lastOnline
       createdAt

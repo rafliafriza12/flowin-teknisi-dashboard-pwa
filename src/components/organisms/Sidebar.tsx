@@ -23,34 +23,13 @@ export const Sidebar = () => {
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<string[]>([]);
   const logout = useLogout();
-  const { 
-    canReadContent, 
-    canManageUsers, 
-    canManageCategories, 
-    canManageRoles, 
-    canAccessGeneralSettings,
-    canAccessNotificationSettings,
-    canAccessIntegrationSettings,
-    isLoading: isLoadingPermissions 
-  } = usePermissions();
+  const { isTechnician, isLoading: isLoadingPermissions } = usePermissions();
 
-  // Determine if user has any settings access (any of the settings permissions)
-  const hasAnySettingsAccess = 
-    canManageCategories || 
-    canManageRoles || 
-    canAccessGeneralSettings || 
-    canAccessNotificationSettings || 
-    canAccessIntegrationSettings;
-
-  // Filter sidebar menu based on permissions
+  // Teknisi punya akses ke semua menu konten
   const filteredSidebarMenu = useMemo(() => {
-    // If user can read content, show all content menus
-    if (canReadContent) {
-      return sidebarMenu;
-    }
-    // If no read permission, only show Dashboard
-    return sidebarMenu.filter(item => item.name === "Dashboard");
-  }, [canReadContent]);
+    if (isTechnician) return sidebarMenu;
+    return sidebarMenu.filter((item) => item.name === "Dashboard");
+  }, [isTechnician]);
 
   const handleLogout = () => {
     logout.mutateAsync(
@@ -62,7 +41,7 @@ export const Sidebar = () => {
         onError: (error) => {
           showErrorToast(error);
         },
-      }
+      },
     );
   };
 
@@ -71,7 +50,7 @@ export const Sidebar = () => {
     filteredSidebarMenu.forEach((menu) => {
       if (menu.subMenu.length > 0) {
         const hasActiveSubMenu = menu.subMenu.some((sub) =>
-          isActiveMenu(sub.url, pathname)
+          isActiveMenu(sub.url, pathname),
         );
         if (hasActiveSubMenu || isActiveMenu(menu.url, pathname)) {
           menusToOpen.push(menu.name);
@@ -85,7 +64,7 @@ export const Sidebar = () => {
     setOpenMenus((prev) =>
       prev.includes(menuName)
         ? prev.filter((name) => name !== menuName)
-        : [...prev, menuName]
+        : [...prev, menuName],
     );
   };
 
@@ -122,7 +101,7 @@ export const Sidebar = () => {
                     : "text-grey"
                 } font-normal text-xs`}
               >
-                {user?.me?.role}
+                {user?.me?.email}
               </p>
             </div>
             <ChevronLeftIcon className="w-4 h-4 rotate-180 ml-auto" />
@@ -225,44 +204,8 @@ export const Sidebar = () => {
             OTHERS
           </p>
           <div className="px-5 flex flex-col gap-1.5">
-            {/* Users - only show if user has userManagement permission */}
-            {canManageUsers && (
-              <Link
-                href={"/users"}
-                className={`flex w-full gap-3 py-2.5 p-3 rounded-lg duration-200 text-xs items-center ${
-                  isActiveMenu("/users", pathname)
-                    ? "text-neutral-01 bg-charcoal-green-lighter font-medium"
-                    : "text-neutral-02 hover:bg-moss-stone/10"
-                }`}
-              >
-                <ThreeUserGroupIcon
-                  className="w-5 h-5"
-                  variant={
-                    isActiveMenu("/users", pathname) ? "filled" : "outline"
-                  }
-                />
-                <span>Users</span>
-              </Link>
-            )}
-            {/* Settings - show if user has any settings access */}
-            {hasAnySettingsAccess && (
-              <Link
-                href={"/settings"}
-                className={`flex w-full gap-3 py-2.5 p-3 rounded-lg duration-200 text-xs items-center ${
-                  isActiveMenu("/settings", pathname)
-                    ? "text-neutral-01 bg-charcoal-green-lighter font-medium"
-                    : "text-neutral-02 hover:bg-moss-stone/10"
-                }`}
-              >
-                <GearIcon
-                  className="w-5 h-5"
-                  variant={
-                    isActiveMenu("/settings", pathname) ? "filled" : "outline"
-                  }
-                />
-                <span>Settings</span>
-              </Link>
-            )}
+            {/* Users - hanya tampil jika bukan Teknisi biasa (misal Admin dari sistem lain) */}
+
             <button
               onClick={handleLogout}
               className={`flex w-full gap-3 py-2.5 p-3 rounded-lg hover:bg-error/10 duration-200 text-xs items-center text-error`}
