@@ -7,7 +7,7 @@ import { useSidebar } from "@/providers/SidebarProvider";
 import ChevronLeftIcon from "../atoms/icons/ChevronLeftIcon";
 import { isActiveMenu } from "@/libs/utils";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import ThreeUserGroupIcon from "../atoms/icons/ThreeUserGroupIcon";
 import GearIcon from "../atoms/icons/GearIcon";
@@ -15,7 +15,6 @@ import LogoutIcon from "../atoms/icons/LogoutIcon";
 import { useLogout } from "@/services";
 import { showErrorToast, showToast } from "@/libs/toast";
 import { useMe } from "@/services";
-import { usePermissions } from "@/providers/PermissionProvider";
 
 export const Sidebar = () => {
   const { data: user } = useMe();
@@ -23,13 +22,9 @@ export const Sidebar = () => {
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<string[]>([]);
   const logout = useLogout();
-  const { isTechnician, isLoading: isLoadingPermissions } = usePermissions();
 
-  // Teknisi punya akses ke semua menu konten
-  const filteredSidebarMenu = useMemo(() => {
-    if (isTechnician) return sidebarMenu;
-    return sidebarMenu.filter((item) => item.name === "Dashboard");
-  }, [isTechnician]);
+  // Halaman private hanya bisa diakses Technician (dijaga middleware + layout)
+  const filteredSidebarMenu = sidebarMenu;
 
   const handleLogout = () => {
     logout.mutateAsync(
@@ -84,16 +79,11 @@ export const Sidebar = () => {
           }`}
         >
           <div className="w-full flex items-center gap-4 py-5 border-b border-grey-stroke">
-            <div className="w-[3.2rem] h-[3.2rem] relative">
-              <Image
-                src={user?.me?.profilePictureUrl || "/img/userPlaceholder.png"}
-                alt={user?.me?.fullname || "User"}
-                fill
-                className="object-cover object-top rounded-sm w-full h-full"
-              />
-            </div>
+            {/* <div className="w-[3.2rem] h-[3.2rem] relative bg-amber-100">
+              
+            </div> */}
             <div className="flex flex-col gap-2">
-              <p className="font-medium text-sm">{user?.me?.fullname}</p>
+              <p className="font-medium text-sm">{user?.me?.namaLengkap}</p>
               <p
                 className={`${
                   isActiveMenu("/profile", pathname)

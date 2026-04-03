@@ -10,7 +10,6 @@ import {
 import { GET_ME } from "@/libs/graphql/queries";
 import {
   LOGIN,
-  REGISTER,
   LOGOUT,
   CHANGE_PASSWORD,
   FORGOT_PASSWORD,
@@ -22,14 +21,13 @@ import { UPDATE_USER } from "@/libs/graphql/mutations";
 
 export interface AuthUser {
   id: string;
-  profilePictureUrl: string;
-  fullname: string;
-  username: string;
+  namaLengkap: string;
+  nip: string;
   email: string;
+  noHp: string;
+  pekerjaanSekarang?: string | null;
+  divisi: "perencanaan_teknik" | "teknik_cabang" | "pengawasan_teknik";
   isActive: boolean;
-  lastOnline: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface TokenPair {
@@ -38,14 +36,6 @@ export interface TokenPair {
 }
 
 export interface LoginInput {
-  email: string;
-  password: string;
-}
-
-export interface RegisterInput {
-  profilePictureUrl: string;
-  fullname: string;
-  username: string;
   email: string;
   password: string;
 }
@@ -152,28 +142,6 @@ export function useLogin() {
       queryClient.clear();
     },
   });
-}
-
-/**
- * Hook untuk register (tanpa auth token)
- */
-export function useRegister() {
-  const queryClient = useQueryClient();
-
-  return useGraphQLPublicMutation<RegisterResponse, { input: RegisterInput }>(
-    REGISTER,
-    {
-      onSuccess: async (data) => {
-        // Simpan tokens setelah register berhasil (Server Action)
-        await setAuthCookies(
-          data.register.tokens.accessToken,
-          data.register.tokens.refreshToken,
-        );
-        // Clear semua cache query
-        queryClient.clear();
-      },
-    },
-  );
 }
 
 /**

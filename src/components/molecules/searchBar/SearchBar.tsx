@@ -11,7 +11,6 @@ import { useRouter } from "next/navigation";
 import SearchIcon from "../../atoms/icons/SearchIcon";
 import CommandF from "../../atoms/icons/CommandF";
 import { searchableItems, SearchableItem } from "@/constant/searchableItems";
-import { usePermissions } from "@/providers/PermissionProvider";
 import ChevronLeftIcon from "../../atoms/icons/ChevronLeftIcon";
 
 // ── helpers ──────────────────────────────────────────────────────────
@@ -69,7 +68,6 @@ function scoreItem(item: SearchableItem, query: string): number {
 
 export const SearchBar = () => {
   const router = useRouter();
-  const { isTechnician, isLoading: isLoadingPermissions } = usePermissions();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -79,13 +77,9 @@ export const SearchBar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  // ── permission-filtered items (computed once when perms load) ──
-  const allowedItems = useMemo(() => {
-    if (isLoadingPermissions) return [];
-    // Semua item ditampilkan untuk Teknisi yang sudah login
-    if (isTechnician) return searchableItems;
-    return searchableItems.filter((item) => !item.category); // hanya Dashboard & Profile
-  }, [isLoadingPermissions, isTechnician]);
+  // Halaman private hanya bisa diakses Technician (dijaga middleware + layout)
+  // Semua searchable items tersedia
+  const allowedItems = searchableItems;
 
   // ── search results ─────────────────────────────────────────────
   const results = useMemo(() => {

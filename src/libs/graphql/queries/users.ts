@@ -3,14 +3,13 @@ export const GET_USERS = `
   query Users {
     users {
         id
-        profilePictureUrl
-        fullname
-        username
+        namaLengkap
+        nip
         email
+        noHp
+        pekerjaanSekarang
+        divisi
         isActive
-        lastOnline
-        createdAt
-        updatedAt
       }
     }
 `;
@@ -18,15 +17,14 @@ export const GET_USERS = `
 export const GET_USER_BY_ID = `
   query GetUserById($id: ID!) {
     user(id: $id) {
-        id
-        profilePictureUrl
-        fullname
-        username
+       id
+        namaLengkap
+        nip
         email
+        noHp
+        pekerjaanSekarang
+        divisi
         isActive
-        lastOnline
-        createdAt
-        updatedAt
     }
   }
 `;

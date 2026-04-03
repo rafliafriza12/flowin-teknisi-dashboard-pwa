@@ -1,5 +1,4 @@
 import MainLayout from "@/components/templates/layouts/MainLayout";
-import PermissionProvider from "@/providers/PermissionProvider";
 import { SidebarProvider } from "@/providers/SidebarProvider";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -44,11 +43,9 @@ const PrivateLayout = async ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <PermissionProvider>
-      <SidebarProvider>
-        <MainLayout>{children}</MainLayout>
-      </SidebarProvider>
-    </PermissionProvider>
+    <SidebarProvider>
+      <MainLayout>{children}</MainLayout>
+    </SidebarProvider>
   );
 };
 

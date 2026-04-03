@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import {
   GRAPHQL_ENDPOINT,
@@ -26,7 +27,10 @@ async function refreshTokenAction(): Promise<string> {
 
   const response = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.INTERNAL_API_SECRET || "",
+    },
     body: JSON.stringify({
       query: `
         mutation RefreshToken($refreshToken: String!) {
@@ -48,6 +52,11 @@ async function refreshTokenAction(): Promise<string> {
     refreshToken: { accessToken: string; refreshToken: string };
   }> = await response.json();
 
+  if (json?.errors?.length) {
+    const msg = json.errors.map((e) => e.message).join(", ");
+    throw new Error(`Refresh token error: ${msg}`);
+  }
+
   const data = json?.data?.refreshToken;
   if (!data?.accessToken) {
     throw new Error("Failed to refresh token");
@@ -57,12 +66,14 @@ async function refreshTokenAction(): Promise<string> {
 
   // Set cookies baru — browser akan menerima via Set-Cookie header
   cookieStore.set("access_token", data.accessToken, {
+    httpOnly: true,
     secure,
     sameSite: "strict",
     path: "/",
-    expires: new Date(Date.now() + 60 * 60 * 1000), // 1 jam
+    expires: new Date(Date.now() + 15 * 60 * 1000), // 15 menit (sesuai JWT exp)
   });
   cookieStore.set("refresh_token", data.refreshToken, {
+    httpOnly: true,
     secure,
     sameSite: "strict",
     path: "/",
@@ -75,18 +86,20 @@ async function refreshTokenAction(): Promise<string> {
 // Set cookies pada login/register
 export async function setAuthCookies(
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
 ): Promise<void> {
   const cookieStore = await cookies();
   const secure = process.env.NODE_ENV === "production";
 
   cookieStore.set("access_token", accessToken, {
+    httpOnly: true,
     secure,
     sameSite: "strict",
     path: "/",
-    expires: new Date(Date.now() + 60 * 60 * 1000), // 1 jam
+    expires: new Date(Date.now() + 15 * 60 * 1000), // 15 menit (sesuai JWT exp)
   });
   cookieStore.set("refresh_token", refreshToken, {
+    httpOnly: true,
     secure,
     sameSite: "strict",
     path: "/",
@@ -114,10 +127,10 @@ export async function clearAuthCookies(): Promise<void> {
  */
 export async function graphqlAction<T>(
   query: string,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
 ): Promise<T> {
   const makeRequest = async (
-    overrideToken?: string
+    overrideToken?: string,
   ): Promise<GraphQLResponse<T>> => {
     const cookieStore = await cookies();
     const token = overrideToken ?? cookieStore.get("access_token")?.value;
@@ -175,11 +188,17 @@ export async function graphqlAction<T>(
 
   // Auto-refresh jika token expired (UNAUTHENTICATED dari GraphQL atau HTTP 401)
   if (result.errors?.length && isAuthErr(result.errors)) {
+    let refreshed = false;
     try {
       const newToken = await refreshTokenAction();
       result = await makeRequest(newToken);
-    } catch {
-      // Refresh gagal → redirect ke login
+      refreshed = true;
+    } catch (err) {
+      // Biarkan redirect error Next.js tetap propagate (jangan di-swallow)
+      if (isRedirectError(err)) throw err;
+      // Refresh token expired/invalid → redirect ke login
+    }
+    if (!refreshed) {
       redirect("/login");
     }
   }
@@ -214,11 +233,14 @@ export async function graphqlAction<T>(
  */
 export async function graphqlPublicAction<T>(
   query: string,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
 ): Promise<T> {
   const response = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": process.env.INTERNAL_API_SECRET || "" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.INTERNAL_API_SECRET || "",
+    },
     body: JSON.stringify({ query, variables }),
     cache: "no-store",
   });

@@ -3,14 +3,13 @@ export const GET_ME = `
   query Me {
     me {
       id
-      profilePictureUrl
-      fullname
-      username
-      email
-      isActive
-      lastOnline
-      createdAt
-      updatedAt
+        namaLengkap
+        nip
+        email
+        noHp
+        pekerjaanSekarang
+        divisi
+        isActive
     }
   }
 `;

@@ -5,43 +5,19 @@ export const LOGIN = `
   mutation Login($input: LoginInput!) {
     login(input: $input) {
       user {
-        id
-        profilePictureUrl
-        fullname
-        username
-        email
-        isActive
-        lastOnline
-        createdAt
-        updatedAt
-      }
-      tokens {
-        accessToken
-        refreshToken
-      }
-    }
-  }
-`;
-
-// Register - Public (tanpa token)
-export const REGISTER = `
-  mutation Register($input: RegisterInput!) {
-    register(input: $input) {
-      user {
-        id
-        profilePictureUrl
-        fullname
-        username
-        email
-        isActive
-        lastOnline
-        createdAt
-        updatedAt
-      }
-      tokens {
-        accessToken
-        refreshToken
-      }
+            id
+            namaLengkap
+            nip
+            email
+            noHp
+            pekerjaanSekarang
+            divisi
+            isActive
+        }
+        tokens {
+            accessToken
+            refreshToken
+        }
     }
   }
 `;
