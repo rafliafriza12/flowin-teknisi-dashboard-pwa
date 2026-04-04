@@ -1,5 +1,4 @@
 import PekerjaanDetailTemplate from "@/components/templates/pages/pekerjaan/PekerjaanDetailTemplate";
-import PrivateLayout from "@/app/(pages)/(private)/layout";
 
 interface PekerjaanDetailPageProps {
   params: Promise<{ id: string }>;
@@ -8,11 +7,7 @@ interface PekerjaanDetailPageProps {
 const PekerjaanDetailPage = async ({ params }: PekerjaanDetailPageProps) => {
   const { id } = await params;
 
-  return (
-    <PrivateLayout>
-      <PekerjaanDetailTemplate id={id} />
-    </PrivateLayout>
-  );
+  return <PekerjaanDetailTemplate id={id} />;
 };
 
 export default PekerjaanDetailPage;
