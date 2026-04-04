@@ -91,7 +91,7 @@ export const Sidebar = () => {
                     : "text-grey"
                 } font-normal text-xs`}
               >
-                {user?.me?.email}
+                {user?.me?.divisi.split("_").join(" ")}
               </p>
             </div>
             <ChevronLeftIcon className="w-4 h-4 rotate-180 ml-auto" />

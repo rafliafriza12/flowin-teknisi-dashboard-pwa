@@ -10,6 +10,7 @@ import {
   isAuthErr,
   isForbidErr,
 } from "./utils";
+import { generateSignatureHash } from "./signatureHash";
 
 // ============ REFRESH TOKEN (SERVER-SIDE) ============
 
@@ -122,12 +123,14 @@ export async function clearAuthCookies(): Promise<void> {
  * - Membaca access token dari cookies (server-side via next/headers)
  * - Otomatis refresh token jika UNAUTHENTICATED
  * - Redirect ke /login jika refresh gagal
+ * - Jika `signPayload` diberikan, generate HMAC-SHA256 signature dan kirim via `x-signature` header
  *
  * Gunakan untuk semua protected queries & mutations.
  */
 export async function graphqlAction<T>(
   query: string,
   variables?: Record<string, unknown>,
+  signPayload?: unknown,
 ): Promise<T> {
   const makeRequest = async (
     overrideToken?: string,
@@ -140,6 +143,11 @@ export async function graphqlAction<T>(
       "x-api-key": process.env.INTERNAL_API_SECRET || "",
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    // Tambahkan signature hash jika ada payload yang perlu di-sign
+    if (signPayload !== undefined) {
+      headers["x-signature"] = generateSignatureHash(signPayload);
+    }
 
     const response = await fetch(GRAPHQL_ENDPOINT, {
       method: "POST",

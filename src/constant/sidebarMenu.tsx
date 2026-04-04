@@ -1,4 +1,5 @@
 import DashboardIcon from "@/components/atoms/icons/DashboardIcon";
+import WorkOrderIcon from "@/components/atoms/icons/WorkOrderIcon";
 
 import { IconProps } from "@/types/iconProps";
 
@@ -16,5 +17,10 @@ export const sidebarMenu: SidebarMenuItem[] = [
     icon: DashboardIcon,
     subMenu: [],
   },
+  {
+    name: "Pekerjaan",
+    url: "/pekerjaan",
+    icon: WorkOrderIcon,
+    subMenu: [],
+  },
 ];
-

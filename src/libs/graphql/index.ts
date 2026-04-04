@@ -23,5 +23,6 @@ export { queryKeys } from "./queryKeys";
 export {
   useGraphQLQuery,
   useGraphQLMutation,
+  useGraphQLSignedMutation,
   useGraphQLPublicMutation,
 } from "./hooks";

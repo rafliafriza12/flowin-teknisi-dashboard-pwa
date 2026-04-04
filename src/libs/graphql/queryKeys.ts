@@ -127,10 +127,12 @@ export const queryKeys = {
       filters && Object.keys(filters).length > 0
         ? [...queryKeys.creditAndAnalystReports.lists(), filters]
         : queryKeys.creditAndAnalystReports.lists(),
-    details: () => [...queryKeys.creditAndAnalystReports.all, "detail"] as const,
+    details: () =>
+      [...queryKeys.creditAndAnalystReports.all, "detail"] as const,
     detail: (id: string | number) =>
       [...queryKeys.creditAndAnalystReports.details(), id] as const,
-    published: () => [...queryKeys.creditAndAnalystReports.all, "published"] as const,
+    published: () =>
+      [...queryKeys.creditAndAnalystReports.all, "published"] as const,
   },
   financialStatements: {
     all: ["financialStatements"] as const,
@@ -142,7 +144,8 @@ export const queryKeys = {
     details: () => [...queryKeys.financialStatements.all, "detail"] as const,
     detail: (id: string | number) =>
       [...queryKeys.financialStatements.details(), id] as const,
-    published: () => [...queryKeys.financialStatements.all, "published"] as const,
+    published: () =>
+      [...queryKeys.financialStatements.all, "published"] as const,
   },
   sustainabilityReports: {
     all: ["sustainabilityReports"] as const,
@@ -154,7 +157,8 @@ export const queryKeys = {
     details: () => [...queryKeys.sustainabilityReports.all, "detail"] as const,
     detail: (id: string | number) =>
       [...queryKeys.sustainabilityReports.details(), id] as const,
-    published: () => [...queryKeys.sustainabilityReports.all, "published"] as const,
+    published: () =>
+      [...queryKeys.sustainabilityReports.all, "published"] as const,
   },
   articles: {
     all: ["articles"] as const,
@@ -166,7 +170,8 @@ export const queryKeys = {
     details: () => [...queryKeys.articles.all, "detail"] as const,
     detail: (id: string | number) =>
       [...queryKeys.articles.details(), id] as const,
-    bySlug: (slug: string) => [...queryKeys.articles.all, "bySlug", slug] as const,
+    bySlug: (slug: string) =>
+      [...queryKeys.articles.all, "bySlug", slug] as const,
     published: () => [...queryKeys.articles.all, "published"] as const,
   },
   pressReleaseMedias: {
@@ -179,7 +184,8 @@ export const queryKeys = {
     details: () => [...queryKeys.pressReleaseMedias.all, "detail"] as const,
     detail: (id: string | number) =>
       [...queryKeys.pressReleaseMedias.details(), id] as const,
-    published: () => [...queryKeys.pressReleaseMedias.all, "published"] as const,
+    published: () =>
+      [...queryKeys.pressReleaseMedias.all, "published"] as const,
   },
   galleries: {
     all: ["galleries"] as const,
@@ -236,10 +242,12 @@ export const queryKeys = {
       filters && Object.keys(filters).length > 0
         ? [...queryKeys.presentationAndInsights.lists(), filters]
         : queryKeys.presentationAndInsights.lists(),
-    details: () => [...queryKeys.presentationAndInsights.all, "detail"] as const,
+    details: () =>
+      [...queryKeys.presentationAndInsights.all, "detail"] as const,
     detail: (id: string | number) =>
       [...queryKeys.presentationAndInsights.details(), id] as const,
-    published: () => [...queryKeys.presentationAndInsights.all, "published"] as const,
+    published: () =>
+      [...queryKeys.presentationAndInsights.all, "published"] as const,
   },
   supportingDocuments: {
     all: ["supportingDocuments"] as const,
@@ -251,7 +259,8 @@ export const queryKeys = {
     details: () => [...queryKeys.supportingDocuments.all, "detail"] as const,
     detail: (id: string | number) =>
       [...queryKeys.supportingDocuments.details(), id] as const,
-    published: () => [...queryKeys.supportingDocuments.all, "published"] as const,
+    published: () =>
+      [...queryKeys.supportingDocuments.all, "published"] as const,
   },
   jobs: {
     all: ["jobs"] as const,
@@ -261,13 +270,31 @@ export const queryKeys = {
         ? [...queryKeys.jobs.lists(), filters]
         : queryKeys.jobs.lists(),
     details: () => [...queryKeys.jobs.all, "detail"] as const,
-    detail: (id: string | number) =>
-      [...queryKeys.jobs.details(), id] as const,
+    detail: (id: string | number) => [...queryKeys.jobs.details(), id] as const,
     published: () => [...queryKeys.jobs.all, "published"] as const,
     settings: () => [...queryKeys.jobs.all, "settings"] as const,
   },
   settings: {
     all: ["settings"] as const,
     data: () => [...queryKeys.settings.all, "data"] as const,
+  },
+  workOrders: {
+    all: ["workOrders"] as const,
+    lists: () => [...queryKeys.workOrders.all, "list"] as const,
+    list: (filters?: Record<string, unknown>) =>
+      filters && Object.keys(filters).length > 0
+        ? [...queryKeys.workOrders.lists(), filters]
+        : queryKeys.workOrders.lists(),
+    saya: () => [...queryKeys.workOrders.all, "saya"] as const,
+    sayaFiltered: (filters?: Record<string, unknown>) =>
+      filters && Object.keys(filters).length > 0
+        ? [...queryKeys.workOrders.saya(), filters]
+        : queryKeys.workOrders.saya(),
+    details: () => [...queryKeys.workOrders.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.workOrders.details(), id] as const,
+    byKoneksiData: (idKoneksiData: string) =>
+      [...queryKeys.workOrders.all, "byKoneksiData", idKoneksiData] as const,
+    workflowChain: (idKoneksiData: string) =>
+      [...queryKeys.workOrders.all, "workflowChain", idKoneksiData] as const,
   },
 } as const;

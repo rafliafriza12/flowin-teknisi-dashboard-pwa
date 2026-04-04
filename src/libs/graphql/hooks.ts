@@ -16,12 +16,12 @@ import { graphqlAction, graphqlPublicAction } from "./actions";
  */
 export function useGraphQLQuery<
   TData,
-  TVariables extends Record<string, unknown> = Record<string, unknown>
+  TVariables extends Record<string, unknown> = Record<string, unknown>,
 >(
   queryKey: QueryKey,
   query: string,
   variables?: TVariables,
-  options?: Omit<UseQueryOptions<TData, Error>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<TData, Error>, "queryKey" | "queryFn">,
 ) {
   return useQuery<TData, Error>({
     queryKey,
@@ -38,14 +38,42 @@ export function useGraphQLQuery<
  */
 export function useGraphQLMutation<
   TData,
-  TVariables extends Record<string, unknown> = Record<string, unknown>
+  TVariables extends Record<string, unknown> = Record<string, unknown>,
 >(
   mutation: string,
-  options?: Omit<UseMutationOptions<TData, Error, TVariables>, "mutationFn">
+  options?: Omit<UseMutationOptions<TData, Error, TVariables>, "mutationFn">,
+) {
+  return useMutation<TData, Error, TVariables>({
+    mutationFn: (variables) => graphqlAction<TData>(mutation, variables),
+    ...options,
+  });
+}
+
+/**
+ * Generic hook for GraphQL mutations WITH signature hash (WITH auth).
+ *
+ * Backend memverifikasi HMAC-SHA256 dari `variables.input` via header `x-signature`.
+ * Hook ini otomatis mengekstrak `input` dari variables dan meneruskannya
+ * sebagai signPayload ke `graphqlAction`.
+ *
+ * Gunakan untuk semua mutations work order yang memerlukan payload signature.
+ *
+ * @param mutation - GraphQL mutation string
+ * @param options - Additional TanStack Mutation options
+ */
+export function useGraphQLSignedMutation<
+  TData,
+  TVariables extends Record<string, unknown> & { input: unknown } = Record<
+    string,
+    unknown
+  > & { input: unknown },
+>(
+  mutation: string,
+  options?: Omit<UseMutationOptions<TData, Error, TVariables>, "mutationFn">,
 ) {
   return useMutation<TData, Error, TVariables>({
     mutationFn: (variables) =>
-      graphqlAction<TData>(mutation, variables),
+      graphqlAction<TData>(mutation, variables, variables.input),
     ...options,
   });
 }
@@ -58,14 +86,13 @@ export function useGraphQLMutation<
  */
 export function useGraphQLPublicMutation<
   TData,
-  TVariables extends Record<string, unknown> = Record<string, unknown>
+  TVariables extends Record<string, unknown> = Record<string, unknown>,
 >(
   mutation: string,
-  options?: Omit<UseMutationOptions<TData, Error, TVariables>, "mutationFn">
+  options?: Omit<UseMutationOptions<TData, Error, TVariables>, "mutationFn">,
 ) {
   return useMutation<TData, Error, TVariables>({
-    mutationFn: (variables) =>
-      graphqlPublicAction<TData>(mutation, variables),
+    mutationFn: (variables) => graphqlPublicAction<TData>(mutation, variables),
     ...options,
   });
 }
