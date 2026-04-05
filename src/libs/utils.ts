@@ -18,24 +18,32 @@ export function formatCurrency(amount: number, currency = "USD") {
 
 // Format date to readable string
 export function formatDate(dateString: string | Date): string {
-  if (!dateString) return '-';
-  
+  if (!dateString) return "-";
+
   try {
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-    
-    if (isNaN(date.getTime())) {
-      console.error('Invalid date:', dateString);
-      return 'Invalid Date';
+    let date: Date;
+    if (dateString instanceof Date) {
+      date = dateString;
+    } else if (/^\d+$/.test(dateString)) {
+      // Numeric string → treat as Unix timestamp (ms)
+      date = new Date(Number(dateString));
+    } else {
+      date = new Date(dateString);
     }
 
-    return new Intl.DateTimeFormat('en-US', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
+    if (isNaN(date.getTime())) {
+      console.error("Invalid date:", dateString);
+      return "Invalid Date";
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
     }).format(date);
   } catch (error) {
-    console.error('Error formatting date:', error, dateString);
-    return 'Invalid Date';
+    console.error("Error formatting date:", error, dateString);
+    return "Invalid Date";
   }
 }
 

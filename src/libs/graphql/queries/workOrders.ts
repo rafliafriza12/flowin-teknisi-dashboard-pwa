@@ -3,6 +3,27 @@
 const WORK_ORDER_FIELDS = `
   id
   idKoneksiData
+  koneksiData {
+    id
+    pelanggan {
+      id
+      namaLengkap
+      email
+      noHp
+      alamat
+    }
+    statusPengajuan
+    nik
+    noKK
+    imb
+    alamat
+    kelurahan
+    kecamatan
+    luasBangunan
+    tanggalVerifikasi
+    alasanPenolakan
+    createdAt
+  }
   jenisPekerjaan
   teknisiPenanggungJawab {
     id
@@ -94,6 +115,9 @@ export const GET_WORKFLOW_CHAIN = `
         id
         status
         statusRespon
+        teknisiPenanggungJawab {
+          namaLengkap
+        }
         createdAt
         updatedAt
       }
@@ -108,6 +132,29 @@ export const GET_WORK_ORDERS_BY_KONEKSI_DATA = `
   query WorkOrdersByKoneksiData($idKoneksiData: ID!) {
     workOrdersByKoneksiData(idKoneksiData: $idKoneksiData) {
       ${WORK_ORDER_FIELDS}
+    }
+  }
+`;
+
+export const GET_PROGRES_WORK_ORDER = `
+  query ProgresWorkOrder($workOrderId: ID!) {
+    progresWorkOrder(workOrderId: $workOrderId) {
+      jenisPekerjaan
+      koordinat { longitude latitude }
+      urlJaringan
+      diameterPipa
+      urlPosisiBak
+      posisiMeteran
+      jumlahPenghuni
+      standar
+      totalBiaya
+      urlRab
+      seriMeteran
+      fotoRumah
+      fotoMeteran
+      fotoMeteranDanRumah
+      urlGambar
+      catatan
     }
   }
 `;

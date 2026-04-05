@@ -23,6 +23,7 @@
     "@tiptap/pm": "^3.14.0",
     "@tiptap/react": "^3.14.0",
     "@tiptap/starter-kit": "^3.14.0",
+    "cloudinary": "^2.9.0",
     "date-fns": "^4.1.0",
     "jose": "^6.2.2",
     "js-cookie": "^3.0.5",

@@ -1,6 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useGraphQLQuery, useGraphQLMutation, queryKeys } from "@/libs/graphql";
-import { GET_USERS, GET_USER_BY_ID } from "@/libs/graphql/queries";
+import {
+  GET_USERS,
+  GET_USER_BY_ID,
+  GET_USERS_SEARCH,
+} from "@/libs/graphql/queries";
 import { UPDATE_USER } from "@/libs/graphql/mutations";
 import { IUser, IUpdateUserInput } from "@/types/user";
 
@@ -55,4 +59,19 @@ export function useUpdateUser() {
       });
     },
   });
+}
+
+/**
+ * Cari teknisi berdasarkan nama atau NIP — digunakan untuk autocomplete tim.
+ * Query hanya dijalankan jika `search` tidak kosong.
+ */
+export function useSearchTeknisi(search: string) {
+  return useGraphQLQuery<UsersResponse>(
+    [...queryKeys.users.all, "search", search],
+    GET_USERS_SEARCH,
+    { search },
+    {
+      enabled: search.trim().length >= 1,
+    },
+  );
 }

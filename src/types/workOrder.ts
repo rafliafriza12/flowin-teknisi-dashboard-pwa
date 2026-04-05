@@ -32,7 +32,37 @@ export type StatusRespon =
 
 export type ChainStatus = "selesai" | "aktif" | "belum_dibuat" | "dibatalkan";
 
+export type StatusPengajuan = "PENDING" | "APPROVED" | "REJECTED";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface IPelanggan {
+  id: string;
+  namaLengkap: string;
+  email: string;
+  noHp: string;
+  alamat?: string | null;
+}
+
+export interface IKoneksiData {
+  id: string;
+  pelanggan?: IPelanggan | null;
+  statusPengajuan: StatusPengajuan;
+  nik: string;
+  noKK: string;
+  imb: string;
+  alamat: string;
+  kelurahan: string;
+  kecamatan: string;
+  luasBangunan: number;
+  tanggalVerifikasi?: string | null;
+  alasanPenolakan?: string | null;
+  nikUrl: string;
+  kkUrl: string;
+  imbUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface IRiwayatReview {
   status: string;
@@ -51,6 +81,7 @@ export interface IRiwayatRespon {
 export interface IWorkOrder {
   id: string;
   idKoneksiData: string;
+  koneksiData?: IKoneksiData | null;
   jenisPekerjaan: JenisPekerjaan;
   teknisiPenanggungJawab: IUser;
   tim: IUser[];
@@ -84,6 +115,37 @@ export interface IWorkflowChainItem {
   chainStatus: ChainStatus;
   urutan: number;
   bisaDibuat: boolean;
+}
+
+// ─── Progres Data (pre-fill form revisi) ─────────────────────────────────────
+
+export interface IKoordinatProgres {
+  longitude: number;
+  latitude: number;
+}
+
+export interface IProgresData {
+  jenisPekerjaan: JenisPekerjaan;
+  // Survei
+  koordinat?: IKoordinatProgres | null;
+  urlJaringan?: string | null;
+  diameterPipa?: number | null;
+  urlPosisiBak?: string | null;
+  posisiMeteran?: string | null;
+  jumlahPenghuni?: number | null;
+  standar?: boolean | null;
+  // RAB
+  totalBiaya?: number | null;
+  urlRab?: string | null;
+  // Pemasangan
+  seriMeteran?: string | null;
+  fotoRumah?: string | null;
+  fotoMeteran?: string | null;
+  fotoMeteranDanRumah?: string | null;
+  // Pengawasan / Penyelesaian
+  urlGambar?: string[] | null;
+  // Shared
+  catatan?: string | null;
 }
 
 // ─── Response Types ───────────────────────────────────────────────────────────

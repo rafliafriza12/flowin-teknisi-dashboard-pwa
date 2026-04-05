@@ -11,6 +11,7 @@ import {
   GET_WORK_ORDER_BY_ID,
   GET_WORKFLOW_CHAIN,
   GET_WORK_ORDERS_BY_KONEKSI_DATA,
+  GET_PROGRES_WORK_ORDER,
 } from "@/libs/graphql/queries";
 import {
   TERIMA_PEKERJAAN,
@@ -32,6 +33,7 @@ import type {
   IKerjaSendiriInput,
   ISimpanProgresInput,
   IKirimHasilInput,
+  IProgresData,
 } from "@/types/workOrder";
 
 // Re-export types
@@ -58,6 +60,10 @@ interface WorkflowChainResponse {
 
 interface WorkOrdersByKoneksiDataResponse {
   workOrdersByKoneksiData: IWorkOrder[];
+}
+
+interface ProgresWorkOrderResponse {
+  progresWorkOrder: IProgresData | null;
 }
 
 // ─── Query Hooks ──────────────────────────────────────────────────────────────
@@ -123,6 +129,20 @@ export function useWorkOrdersByKoneksiData(idKoneksiData: string) {
     { idKoneksiData },
     {
       enabled: !!idKoneksiData,
+    },
+  );
+}
+
+/**
+ * Ambil data progres yang tersimpan untuk work order (untuk pre-fill form revisi).
+ */
+export function useProgresWorkOrder(workOrderId: string) {
+  return useGraphQLQuery<ProgresWorkOrderResponse>(
+    queryKeys.workOrders.progres(workOrderId),
+    GET_PROGRES_WORK_ORDER,
+    { workOrderId },
+    {
+      enabled: !!workOrderId,
     },
   );
 }

@@ -296,5 +296,7 @@ export const queryKeys = {
       [...queryKeys.workOrders.all, "byKoneksiData", idKoneksiData] as const,
     workflowChain: (idKoneksiData: string) =>
       [...queryKeys.workOrders.all, "workflowChain", idKoneksiData] as const,
+    progres: (workOrderId: string) =>
+      [...queryKeys.workOrders.all, "progres", workOrderId] as const,
   },
 } as const;

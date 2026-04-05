@@ -10,6 +10,7 @@ import {
   TimManagementSection,
   PengerjaanSection,
   RiwayatSection,
+  KoneksiDataSection,
 } from "@/components/molecules/workOrder";
 import {
   LABEL_JENIS_PEKERJAAN,
@@ -89,9 +90,13 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
             <h1 className="text-lg font-bold text-neutral-03">
               {LABEL_JENIS_PEKERJAAN[workOrder.jenisPekerjaan]}
             </h1>
-            <p className="text-sm text-grey mt-0.5">
-              ID Koneksi Data: {workOrder.idKoneksiData}
-            </p>
+            {workOrder.koneksiData ? (
+              <p className="text-sm text-grey mt-0.5">
+                📍 {workOrder.koneksiData.alamat},{" "}
+                {workOrder.koneksiData.kelurahan},{" "}
+                {workOrder.koneksiData.kecamatan}
+              </p>
+            ) : null}
           </div>
           <StatusBadge
             label={LABEL_STATUS_PEKERJAAN[workOrder.status]}
@@ -156,6 +161,11 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
 
         {/* Sidebar — 1 col */}
         <div className="flex flex-col gap-4">
+          {/* Koneksi Data */}
+          {workOrder.koneksiData && (
+            <KoneksiDataSection koneksiData={workOrder.koneksiData} />
+          )}
+
           {/* Workflow Chain */}
           {!chainLoading && chainData?.workflowChain && (
             <WorkflowChainTimeline chain={chainData.workflowChain} />

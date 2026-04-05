@@ -211,9 +211,7 @@ const PekerjaanListTemplate: React.FC = () => {
                         <span
                           className="text-yellow-500 text-xs"
                           title="Perlu respon Anda"
-                        >
-                          ⚠️
-                        </span>
+                        ></span>
                       )}
                     </div>
                   </TableCell>

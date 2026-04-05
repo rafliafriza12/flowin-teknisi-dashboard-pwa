@@ -67,9 +67,15 @@ const WorkflowChainTimeline: React.FC<WorkflowChainTimelineProps> = ({
                   />
                 </div>
                 {item.workOrder && (
-                  <p className="text-xs text-grey mt-0.5">
-                    WO: {item.workOrder.id.slice(-8)}
-                  </p>
+                  <>
+                    <p className="text-xs text-grey mt-0.5">
+                      <strong>ID Pekerjaan</strong>: {item.workOrder.id}
+                    </p>
+                    <p className="text-xs text-grey mt-0.5">
+                      <strong>Penanggung Jawab</strong>:{" "}
+                      {item.workOrder.teknisiPenanggungJawab?.namaLengkap}
+                    </p>
+                  </>
                 )}
               </div>
             </div>

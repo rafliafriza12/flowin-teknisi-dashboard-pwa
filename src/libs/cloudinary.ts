@@ -15,7 +15,7 @@ export interface CloudinaryUploadResponse {
 
 export interface UploadOptions {
   folder?: string;
-  resourceType?: 'image' | 'raw' | 'video' | 'auto';
+  resourceType?: "image" | "raw" | "video" | "auto";
   transformation?: string;
   tags?: string[];
 }
@@ -32,18 +32,18 @@ export async function uploadToCloudinary(
   file: File,
   options: UploadOptions = {},
   onProgress?: (progress: number) => void,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
 ): Promise<CloudinaryUploadResponse> {
   const {
-    folder = 'bumi-resource',
-    resourceType = 'auto',
+    folder = "floein",
+    resourceType = "auto",
     transformation,
     tags = [],
   } = options;
 
   // Validate file
   if (!file) {
-    throw new Error('No file provided');
+    throw new Error("No file provided");
   }
 
   // Get cloud name and upload preset from environment variables
@@ -51,21 +51,21 @@ export async function uploadToCloudinary(
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
   if (!cloudName || !uploadPreset) {
-    throw new Error('Cloudinary configuration is missing');
+    throw new Error("Cloudinary configuration is missing");
   }
 
   // Create form data
   const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', uploadPreset);
-  formData.append('folder', folder);
-  
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", folder);
+
   if (tags.length > 0) {
-    formData.append('tags', tags.join(','));
+    formData.append("tags", tags.join(","));
   }
 
   if (transformation) {
-    formData.append('transformation', transformation);
+    formData.append("transformation", transformation);
   }
 
   const url = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
@@ -80,49 +80,53 @@ export async function uploadToCloudinary(
 
     if (abortSignal) {
       if (abortSignal.aborted) {
-        reject(new DOMException('Upload cancelled', 'AbortError'));
+        reject(new DOMException("Upload cancelled", "AbortError"));
         return;
       }
-      abortSignal.addEventListener('abort', onAbort);
+      abortSignal.addEventListener("abort", onAbort);
     }
 
-    xhr.upload.addEventListener('progress', (event) => {
+    xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable && onProgress) {
         const percent = Math.round((event.loaded / event.total) * 100);
         onProgress(percent);
       }
     });
 
-    xhr.addEventListener('load', () => {
-      abortSignal?.removeEventListener('abort', onAbort);
+    xhr.addEventListener("load", () => {
+      abortSignal?.removeEventListener("abort", onAbort);
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const data: CloudinaryUploadResponse = JSON.parse(xhr.responseText);
           resolve(data);
         } catch {
-          reject(new Error('Failed to parse Cloudinary response'));
+          reject(new Error("Failed to parse Cloudinary response"));
         }
       } else {
         try {
           const errorData = JSON.parse(xhr.responseText);
-          reject(new Error(errorData.error?.message || 'Failed to upload file to Cloudinary'));
+          reject(
+            new Error(
+              errorData.error?.message || "Failed to upload file to Cloudinary",
+            ),
+          );
         } catch {
-          reject(new Error('Failed to upload file to Cloudinary'));
+          reject(new Error("Failed to upload file to Cloudinary"));
         }
       }
     });
 
-    xhr.addEventListener('error', () => {
-      abortSignal?.removeEventListener('abort', onAbort);
-      reject(new Error('Network error during upload'));
+    xhr.addEventListener("error", () => {
+      abortSignal?.removeEventListener("abort", onAbort);
+      reject(new Error("Network error during upload"));
     });
 
-    xhr.addEventListener('abort', () => {
-      abortSignal?.removeEventListener('abort', onAbort);
-      reject(new DOMException('Upload cancelled', 'AbortError'));
+    xhr.addEventListener("abort", () => {
+      abortSignal?.removeEventListener("abort", onAbort);
+      reject(new DOMException("Upload cancelled", "AbortError"));
     });
 
-    xhr.open('POST', url);
+    xhr.open("POST", url);
     xhr.send(formData);
   });
 }
@@ -134,19 +138,19 @@ export async function uploadToCloudinary(
  */
 export async function deleteFromCloudinary(publicId: string): Promise<void> {
   try {
-    const response = await fetch('/api/cloudinary/delete', {
-      method: 'POST',
+    const response = await fetch("/api/cloudinary/delete", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ publicId }),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to delete file from Cloudinary');
+      throw new Error("Failed to delete file from Cloudinary");
     }
   } catch (error) {
-    console.error('Cloudinary delete error:', error);
+    console.error("Cloudinary delete error:", error);
     throw error;
   }
 }
@@ -160,13 +164,13 @@ export async function deleteFromCloudinary(publicId: string): Promise<void> {
 export function validateImageFile(
   file: File,
   maxSizeInMB = 5,
-  allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+  allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"],
 ): { valid: boolean; error?: string } {
   // Check file type
   if (!allowedTypes.includes(file.type)) {
     return {
       valid: false,
-      error: `Invalid file type. Allowed types: ${allowedTypes.join(', ')}`,
+      error: `Invalid file type. Allowed types: ${allowedTypes.join(", ")}`,
     };
   }
 
@@ -192,12 +196,12 @@ export function validateDocumentFile(
   file: File,
   maxSizeInMB = 5,
   allowedTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  ]
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ],
 ): { valid: boolean; error?: string } {
   // Check file type
   if (!allowedTypes.includes(file.type)) {
