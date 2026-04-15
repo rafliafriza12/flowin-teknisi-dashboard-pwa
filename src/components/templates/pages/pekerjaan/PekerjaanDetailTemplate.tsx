@@ -11,6 +11,7 @@ import {
   PengerjaanSection,
   RiwayatSection,
   KoneksiDataSection,
+  LaporanSection,
 } from "@/components/molecules/workOrder";
 import {
   LABEL_JENIS_PEKERJAAN,
@@ -32,7 +33,7 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
   const workOrder = data?.workOrder;
 
   const { data: chainData, isLoading: chainLoading } = useWorkflowChain(
-    workOrder?.idKoneksiData || "",
+    workOrder?.idKoneksiData ?? "",
   );
 
   if (isLoading) {
@@ -95,6 +96,10 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
                 📍 {workOrder.koneksiData.alamat},{" "}
                 {workOrder.koneksiData.kelurahan},{" "}
                 {workOrder.koneksiData.kecamatan}
+              </p>
+            ) : workOrder.jenisPekerjaan === "penyelesaian_laporan" ? (
+              <p className="text-sm text-grey mt-0.5">
+                📋 Penyelesaian laporan pelanggan
               </p>
             ) : null}
           </div>
@@ -161,6 +166,12 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
 
         {/* Sidebar — 1 col */}
         <div className="flex flex-col gap-4">
+          {/* Laporan detail — hanya untuk penyelesaian_laporan */}
+          {workOrder.jenisPekerjaan === "penyelesaian_laporan" &&
+            workOrder.idLaporan && (
+              <LaporanSection idLaporan={workOrder.idLaporan} />
+            )}
+
           {/* Koneksi Data */}
           {workOrder.koneksiData && (
             <KoneksiDataSection koneksiData={workOrder.koneksiData} />

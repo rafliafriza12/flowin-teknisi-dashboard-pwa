@@ -67,6 +67,7 @@ const WORK_ORDER_FIELDS = `
   idPengawasanPemasangan
   idPengawasanSetelahPemasangan
   idPenyelesaianLaporan
+  idLaporan
   catatanReview
   riwayatReview {
     status
@@ -155,6 +156,35 @@ export const GET_PROGRES_WORK_ORDER = `
       fotoMeteranDanRumah
       urlGambar
       catatan
+    }
+  }
+`;
+
+export const GET_LAPORAN = `
+  query Laporan($id: ID!) {
+    laporan(id: $id) {
+      id
+      IdPengguna
+      pengguna {
+        id
+        namaLengkap
+        email
+        noHp
+        alamat
+      }
+      NamaLaporan
+      Masalah
+      Alamat
+      imageUrl
+      JenisLaporan
+      Catatan
+      Kordinat {
+        longitude
+        latitude
+      }
+      Status
+      createdAt
+      updatedAt
     }
   }
 `;

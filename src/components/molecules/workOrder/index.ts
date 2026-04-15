@@ -5,3 +5,4 @@ export { default as TimManagementSection } from "./TimManagementSection";
 export { default as PengerjaanSection } from "./PengerjaanSection";
 export { default as RiwayatSection } from "./RiwayatSection";
 export { default as KoneksiDataSection } from "./KoneksiDataSection";
+export { default as LaporanSection } from "./LaporanSection";

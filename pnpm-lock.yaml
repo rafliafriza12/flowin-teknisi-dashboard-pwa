@@ -68,6 +68,9 @@ importers:
       jwt-decode:
         specifier: ^4.0.0
         version: 4.0.0
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
       next:
         specifier: 16.0.10
         version: 16.0.10(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -80,6 +83,9 @@ importers:
       react-dom:
         specifier: 19.2.0
         version: 19.2.0(react@19.2.0)
+      react-leaflet:
+        specifier: ^5.0.0
+        version: 5.0.0(leaflet@1.9.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react-simple-maps:
         specifier: ^3.0.0
         version: 3.0.0(prop-types@15.8.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -96,6 +102,9 @@ importers:
       '@types/js-cookie':
         specifier: ^3.0.6
         version: 3.0.6
+      '@types/leaflet':
+        specifier: ^1.9.21
+        version: 1.9.21
       '@types/node':
         specifier: ^20
         version: 20.19.24
@@ -405,6 +414,13 @@ packages:
 
   '@protobufjs/utf8@1.1.0':
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
+
+  '@react-leaflet/core@3.0.0':
+    resolution: {integrity: sha512-3EWmekh4Nz+pGcr+xjf0KNyYfC3U2JjnkWsh0zcqaexYqmmB5ZhH37kz41JXGmKzpaMZCnPofBBm64i+YrEvGQ==}
+    peerDependencies:
+      leaflet: ^1.9.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
 
   '@reduxjs/toolkit@2.10.1':
     resolution: {integrity: sha512-/U17EXQ9Do9Yx4DlNGU6eVNfZvFJfYpUtRRdLf19PbPjdWBxNlxGZXywQZ1p1Nz8nMkWplTI7iD/23m07nolDA==}
@@ -770,6 +786,9 @@ packages:
   '@types/js-cookie@3.0.6':
     resolution: {integrity: sha512-wkw9yd1kEXOPnvEeEV1Go1MmxtBJL0RR79aOTAApecWFVu7w0NNXNqhcWgvw2YgZDYadliXkl14pa3WXw5jlCQ==}
 
+  '@types/leaflet@1.9.21':
+    resolution: {integrity: sha512-TbAd9DaPGSnzp6QvtYngntMZgcRk+igFELwR2N99XZn7RXUdKgsXMR+28bUO0rPsWp8MIu/f47luLIQuSLYv/w==}
+
   '@types/linkify-it@5.0.0':
     resolution: {integrity: sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q==}
 
@@ -1134,6 +1153,9 @@ packages:
     resolution: {integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==}
     engines: {node: '>=18'}
 
+  leaflet@1.9.4:
+    resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
+
   lightningcss-android-arm64@1.30.2:
     resolution: {integrity: sha512-BH9sEdOCahSgmkVhBLeU7Hc9DWeZ1Eb6wNS6Da8igvUwAe0sqROHddIlvU06q3WyXVEOYDZ6ykBZQnjTbmo4+A==}
     engines: {node: '>= 12.0.0'}
@@ -1408,6 +1430,13 @@ packages:
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
+
+  react-leaflet@5.0.0:
+    resolution: {integrity: sha512-CWbTpr5vcHw5bt9i4zSlPEVQdTVcML390TjeDG0cK59z1ylexpqC6M1PJFjV8jD7CF+ACBFsLIDs6DRMoLEofw==}
+    peerDependencies:
+      leaflet: ^1.9.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
 
   react-redux@9.2.0:
     resolution: {integrity: sha512-ROY9fvHhwOD9ySfrF0wmvu//bKCQ6AeZZq1nJNtbDC+kk5DuSuNX/n6YWYF/SYy7bSba4D4FSz8DJeKY/S/r+g==}
@@ -1855,6 +1884,12 @@ snapshots:
 
   '@protobufjs/utf8@1.1.0': {}
 
+  '@react-leaflet/core@3.0.0(leaflet@1.9.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+    dependencies:
+      leaflet: 1.9.4
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+
   '@reduxjs/toolkit@2.10.1(react-redux@9.2.0(@types/react@19.2.2)(react@19.2.0)(redux@5.0.1))(react@19.2.0)':
     dependencies:
       '@standard-schema/spec': 1.0.0
@@ -2212,6 +2247,10 @@ snapshots:
   '@types/geojson@7946.0.16': {}
 
   '@types/js-cookie@3.0.6': {}
+
+  '@types/leaflet@1.9.21':
+    dependencies:
+      '@types/geojson': 7946.0.16
 
   '@types/linkify-it@5.0.0': {}
 
@@ -2585,6 +2624,8 @@ snapshots:
 
   jwt-decode@4.0.0: {}
 
+  leaflet@1.9.4: {}
+
   lightningcss-android-arm64@1.30.2:
     optional: true
 
@@ -2888,6 +2929,13 @@ snapshots:
       scheduler: 0.27.0
 
   react-is@16.13.1: {}
+
+  react-leaflet@5.0.0(leaflet@1.9.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0):
+    dependencies:
+      '@react-leaflet/core': 3.0.0(leaflet@1.9.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      leaflet: 1.9.4
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
 
   react-redux@9.2.0(@types/react@19.2.2)(react@19.2.0)(redux@5.0.1):
     dependencies:

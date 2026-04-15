@@ -299,4 +299,9 @@ export const queryKeys = {
     progres: (workOrderId: string) =>
       [...queryKeys.workOrders.all, "progres", workOrderId] as const,
   },
+  laporan: {
+    all: ["laporan"] as const,
+    details: () => [...queryKeys.laporan.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.laporan.details(), id] as const,
+  },
 } as const;

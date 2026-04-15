@@ -12,6 +12,7 @@ import {
   GET_WORKFLOW_CHAIN,
   GET_WORK_ORDERS_BY_KONEKSI_DATA,
   GET_PROGRES_WORK_ORDER,
+  GET_LAPORAN,
 } from "@/libs/graphql/queries";
 import {
   TERIMA_PEKERJAAN,
@@ -34,6 +35,7 @@ import type {
   ISimpanProgresInput,
   IKirimHasilInput,
   IProgresData,
+  ILaporan,
 } from "@/types/workOrder";
 
 // Re-export types
@@ -144,6 +146,22 @@ export function useProgresWorkOrder(workOrderId: string) {
     {
       enabled: !!workOrderId,
     },
+  );
+}
+
+/**
+ * Ambil detail laporan berdasarkan ID — untuk WO tipe penyelesaian_laporan.
+ */
+interface LaporanResponse {
+  laporan: ILaporan | null;
+}
+
+export function useLaporan(id: string | null | undefined) {
+  return useGraphQLQuery<LaporanResponse>(
+    queryKeys.laporan.detail(id ?? ""),
+    GET_LAPORAN,
+    { id },
+    { enabled: !!id },
   );
 }
 

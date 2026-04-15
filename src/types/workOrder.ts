@@ -34,6 +34,46 @@ export type ChainStatus = "selesai" | "aktif" | "belum_dibuat" | "dibatalkan";
 
 export type StatusPengajuan = "PENDING" | "APPROVED" | "REJECTED";
 
+export type JenisLaporan =
+  | "AirTidakMengalir"
+  | "AirKeruh"
+  | "KebocoranPipa"
+  | "MeteranBermasalah"
+  | "KendalaLainnya";
+
+export type StatusLaporan = "Diajukan" | "ProsesPerbaikan" | "Selesai";
+
+// ─── Laporan ──────────────────────────────────────────────────────────────────
+
+export interface IPenggunaLaporan {
+  id: string;
+  namaLengkap?: string | null;
+  email?: string | null;
+  noHp?: string | null;
+  alamat?: string | null;
+}
+
+export interface IKoordinatLaporan {
+  longitude: number;
+  latitude: number;
+}
+
+export interface ILaporan {
+  id: string;
+  IdPengguna: string;
+  pengguna?: IPenggunaLaporan | null;
+  NamaLaporan: string;
+  Masalah: string;
+  Alamat: string;
+  imageUrl: string[];
+  JenisLaporan: JenisLaporan;
+  Catatan?: string | null;
+  Kordinat?: IKoordinatLaporan | null;
+  Status: StatusLaporan;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface IPelanggan {
@@ -80,7 +120,7 @@ export interface IRiwayatRespon {
 
 export interface IWorkOrder {
   id: string;
-  idKoneksiData: string;
+  idKoneksiData: string | null;
   koneksiData?: IKoneksiData | null;
   jenisPekerjaan: JenisPekerjaan;
   teknisiPenanggungJawab: IUser;
@@ -102,6 +142,7 @@ export interface IWorkOrder {
   idPengawasanPemasangan?: string | null;
   idPengawasanSetelahPemasangan?: string | null;
   idPenyelesaianLaporan?: string | null;
+  idLaporan?: string | null;
   // Review
   catatanReview?: string | null;
   riwayatReview: IRiwayatReview[];
