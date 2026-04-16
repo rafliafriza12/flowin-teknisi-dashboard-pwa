@@ -42,11 +42,7 @@ const PrivateLayout = async ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  return (
-    <SidebarProvider>
-      <MainLayout>{children}</MainLayout>
-    </SidebarProvider>
-  );
+  return <MainLayout>{children}</MainLayout>;
 };
 
 export default PrivateLayout;

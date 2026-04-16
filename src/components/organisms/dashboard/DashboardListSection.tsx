@@ -30,7 +30,7 @@ const DashboardListSection: React.FC<Props> = ({
   href,
 }) => {
   return (
-    <div className="bg-neutral-01 rounded-2xl p-4 flex flex-col gap-4 h-full">
+    <div className="bg-neutral-01 border border-gray-200 rounded-2xl p-4 flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-neutral-02">{title}</p>
         {href && (

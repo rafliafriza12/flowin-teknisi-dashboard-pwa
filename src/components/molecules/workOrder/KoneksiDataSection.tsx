@@ -24,7 +24,7 @@ const WARNA_STATUS_PENGAJUAN: Record<StatusPengajuan, string> = {
 
 function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-0.5 ">
       <p className="text-[10px] font-medium text-grey uppercase tracking-wider">
         {label}
       </p>
@@ -107,8 +107,8 @@ const KoneksiDataSection: React.FC<KoneksiDataSectionProps> = ({
             <p className="text-xs font-semibold text-neutral-03 mb-2 pb-1 border-b border-grey-stroke">
               Data Pelanggan
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="lg:col-span-2">
                 <DataRow
                   label="Nama Lengkap"
                   value={koneksiData.pelanggan.namaLengkap}
@@ -116,14 +116,6 @@ const KoneksiDataSection: React.FC<KoneksiDataSectionProps> = ({
               </div>
               <DataRow label="Email" value={koneksiData.pelanggan.email} />
               <DataRow label="No. HP" value={koneksiData.pelanggan.noHp} />
-              {koneksiData.pelanggan.alamat && (
-                <div className="col-span-2">
-                  <DataRow
-                    label="Alamat Pelanggan"
-                    value={koneksiData.pelanggan.alamat}
-                  />
-                </div>
-              )}
             </div>
           </div>
         ) : (

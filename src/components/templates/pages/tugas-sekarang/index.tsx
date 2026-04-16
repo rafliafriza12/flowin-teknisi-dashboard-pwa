@@ -134,12 +134,6 @@ const TugasDetail: React.FC<{ id: string }> = ({ id }) => {
               label={LABEL_STATUS_PEKERJAAN[workOrder.status]}
               colorClass={WARNA_STATUS_PEKERJAAN[workOrder.status]}
             />
-            <Link
-              href={`/pekerjaan/${workOrder.id}`}
-              className="text-[11px] text-moss-stone hover:underline"
-            >
-              Lihat di Daftar →
-            </Link>
           </div>
         </div>
 

@@ -36,7 +36,7 @@ const DashboardDistribusiSection: React.FC<Props> = ({
   }, [distribusiJenis]);
 
   return (
-    <div className="bg-neutral-01 rounded-2xl p-4 flex flex-col gap-4 w-full h-full">
+    <div className="bg-neutral-01 border border-gray-200 rounded-2xl p-4 flex flex-col gap-4 w-full h-full">
       <p className="text-sm font-semibold text-neutral-02">
         Distribusi Jenis Pekerjaan
       </p>

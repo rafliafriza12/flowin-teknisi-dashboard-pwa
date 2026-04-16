@@ -73,30 +73,40 @@ const DistribusiJenisChart: React.FC<DistribusiJenisChartProps> = ({
   }
 
   return (
-    <ResponsiveContainer width="100%" height={180}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="40%"
-          cy="50%"
-          innerRadius={50}
-          outerRadius={80}
-          paddingAngle={2}
-          dataKey="value"
-        >
-          {data.map((entry, index) => (
-            <Cell key={index} fill={entry.color} />
-          ))}
-        </Pie>
-        <Tooltip content={<CustomTooltip />} />
-        <Legend
-          layout="vertical"
-          align="right"
-          verticalAlign="middle"
-          content={renderLegend as any}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="flex flex-col items-center gap-4 w-full">
+      <ResponsiveContainer width="100%" height={180}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={50}
+            outerRadius={80}
+            paddingAngle={2}
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={index} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
+        </PieChart>
+      </ResponsiveContainer>
+
+      {/* Legend di bawah chart */}
+      <ul className="flex flex-col gap-1.5 w-full">
+        {data.map((entry, index) => (
+          <li key={index} className="flex items-center gap-2 text-xs text-grey">
+            <span
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="flex-1">{entry.name}</span>
+            <span className="font-medium text-neutral-03">{entry.value}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 };
 

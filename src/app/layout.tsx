@@ -8,8 +8,8 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export const metadata: Metadata = {
-  title: "BUMI Resource CMS",
-  description: "BUMI Resource Content Management System",
+  title: "Flowin - Website Teknisi",
+  description: "Management pekerjaan teknisi",
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <NextTopLoader
-          color="#A0AC67"
+          color="#1f2375"
           initialPosition={0.08}
           crawlSpeed={200}
           height={3}
@@ -34,7 +34,9 @@ export default function RootLayout({
           speed={200}
           zIndex={99999}
         />
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <SidebarProvider>{children}</SidebarProvider>
+        </QueryProvider>
         <ToastContainer
           position="top-right"
           autoClose={4000}
