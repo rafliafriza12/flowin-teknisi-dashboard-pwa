@@ -1,9 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
 
-export default function AccessDeniedPage() {
+function AccessDeniedContent() {
   const searchParams = useSearchParams();
   const role = searchParams.get("role");
 
@@ -61,5 +62,13 @@ export default function AccessDeniedPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AccessDeniedPage() {
+  return (
+    <Suspense>
+      <AccessDeniedContent />
+    </Suspense>
   );
 }

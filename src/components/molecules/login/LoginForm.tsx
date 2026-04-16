@@ -44,13 +44,13 @@ const LoginForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) return;
-    
+
     setIsLoading(true);
     try {
       const result = await login.mutateAsync({ input: { email, password } });
-      showToast.success(`Welcome back, ${result.login.user.fullname}!`);
+      showToast.success(`Welcome back, ${result.login.user.namaLengkap}!`);
       router.push("/");
     } catch (error) {
       showErrorToast(error);
@@ -66,7 +66,9 @@ const LoginForm: React.FC = () => {
         {/* Email Field */}
         <div className="space-y-1.5">
           <label htmlFor="email" className="block">
-            <BodySmallMedium className="text-neutral-03">Email address</BodySmallMedium>
+            <BodySmallMedium className="text-neutral-03">
+              Email address
+            </BodySmallMedium>
           </label>
           <EmailInput
             id="email"
@@ -84,10 +86,12 @@ const LoginForm: React.FC = () => {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label htmlFor="password" className="block">
-              <BodySmallMedium className="text-neutral-03">Password</BodySmallMedium>
+              <BodySmallMedium className="text-neutral-03">
+                Password
+              </BodySmallMedium>
             </label>
-            <Link 
-              href="/login/forgot-password" 
+            <Link
+              href="/login/forgot-password"
               className="text-sm text-moss-stone hover:text-moss-stone/80 transition-colors font-medium"
             >
               Forgot password?
@@ -110,7 +114,7 @@ const LoginForm: React.FC = () => {
                 "placeholder:text-gray-400",
                 "focus:outline-none focus:border-moss-stone focus:ring-2 focus:ring-moss-stone/20",
                 "transition-all duration-200",
-                "disabled:bg-grey-lightest disabled:cursor-not-allowed"
+                "disabled:bg-grey-lightest disabled:cursor-not-allowed",
               )}
             />
             <button
@@ -140,7 +144,7 @@ const LoginForm: React.FC = () => {
               "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-moss-stone",
               isFormValid && !isLoading
                 ? "bg-charcoal-green text-white hover:bg-charcoal-green/90 active:scale-[0.98]"
-                : "bg-grey-stroke text-grey cursor-not-allowed"
+                : "bg-grey-stroke text-grey cursor-not-allowed",
             )}
           >
             {isLoading ? (
