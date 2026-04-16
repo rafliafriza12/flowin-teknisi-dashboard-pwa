@@ -16,7 +16,7 @@ export function formatCurrency(amount: number, currency = "USD") {
   }).format(amount);
 }
 
-// Format date to readable string
+// Format date to readable string — format: Kamis, 16 Apr 2026
 export function formatDate(dateString: string | Date): string {
   if (!dateString) return "-";
 
@@ -36,9 +36,10 @@ export function formatDate(dateString: string | Date): string {
       return "Invalid Date";
     }
 
-    return new Intl.DateTimeFormat("en-US", {
+    return new Intl.DateTimeFormat("id-ID", {
+      weekday: "long",
       day: "2-digit",
-      month: "2-digit",
+      month: "short",
       year: "numeric",
     }).format(date);
   } catch (error) {

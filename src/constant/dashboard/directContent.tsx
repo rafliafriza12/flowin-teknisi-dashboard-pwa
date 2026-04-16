@@ -55,12 +55,12 @@ export const browserUsages = [
     {
         title: 'IE',
         percentage: 25,
-        color: '#A0AC67'
+        color: '#1F2375'
     },
     {
         title: 'Safari',
         percentage: 35,
-        color: '#225442'
+        color: '#3B41A3'
     },
     {
         title: 'Others',

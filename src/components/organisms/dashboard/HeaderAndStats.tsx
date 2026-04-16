@@ -1,16 +1,16 @@
 "use client";
 
+import React from "react";
 import { Heading3 } from "@/components/atoms/Typography";
 import { StatCard } from "@/components/molecules/dashboard/StatCard";
-import { useAnalyticsStats } from "@/services/analyticsService";
-import ClosedBookIcon from "@/components/atoms/icons/ClosedBookIcon";
-import OpenedBookIcon from "@/components/atoms/icons/OpenedBookIcon";
-import ThreeUserGroupIcon from "@/components/atoms/icons/ThreeUserGroupIcon";
-import TwoUserGroupIcon from "@/components/atoms/icons/TwoUserGroupIcon";
-
+import { useMe } from "@/services/authService";
 import { DashboardStatType } from "@/constant/dashboard/stat";
+import { useDashboardStats } from "@/services/workOrderService";
+import WorkOrderIcon from "@/components/atoms/icons/WorkOrderIcon";
+import CalendarIcon from "@/components/atoms/icons/CalendarIcon";
+import SuccessIcon from "@/components/atoms/icons/SuccessIcon";
+import WarningIcon from "@/components/atoms/icons/WarningIcon";
 
-// Skeleton pulse for loading state
 const StatSkeleton = () => (
   <div className="bg-neutral-01 flex flex-col gap-6 p-4 rounded-2xl animate-pulse">
     <div className="flex w-full gap-2 items-center">
@@ -25,65 +25,71 @@ const StatSkeleton = () => (
   </div>
 );
 
-const HeaderAndStats = () => {
-  const { data: gaStats, isLoading: gaLoading } = useAnalyticsStats();
+const HeaderAndStats: React.FC = () => {
+  const { data: meData } = useMe();
+  const { data: statsData, isLoading } = useDashboardStats();
+  const user = meData?.me;
+  const stats_raw = statsData?.dashboardStats;
 
-  const isLoading = gaLoading;
+  const totalAll =
+    (stats_raw?.totalSelesai ?? 0) + (stats_raw?.totalBelumSelesai ?? 0);
 
-  const formatChange = (change: number) =>
-    `${Math.abs(change).toFixed(1)}%`;
-
-
+  const pctSelesai =
+    totalAll > 0
+      ? Math.round(((stats_raw?.totalSelesai ?? 0) / totalAll) * 100)
+      : 0;
+  const pctBelum =
+    totalAll > 0
+      ? Math.round(((stats_raw?.totalBelumSelesai ?? 0) / totalAll) * 100)
+      : 0;
 
   const stats: DashboardStatType[] = [
     {
-      icon: <TwoUserGroupIcon className="w-4 h-4 text-neutral-01" />,
-      title: "Total Visitors (Today)",
-      value: (gaStats?.visitorsToday ?? 0).toLocaleString(),
-      indicator: (gaStats?.visitorsTodayChange ?? 0) >= 0 ? "up" : "down",
-      progress: formatChange(gaStats?.visitorsTodayChange ?? 0),
-      description: "compared to yesterday",
-    },
-    {
-      icon: <ThreeUserGroupIcon className="w-4 h-4 text-neutral-01" />,
-      title: "Total Visitors (This Month)",
-      value: (gaStats?.visitorsThisMonth ?? 0).toLocaleString(),
-      indicator: (gaStats?.visitorsThisMonthChange ?? 0) >= 0 ? "up" : "down",
-      progress: formatChange(gaStats?.visitorsThisMonthChange ?? 0),
-      description: "compared to last month",
-    },
-    {
-      icon: <OpenedBookIcon className="w-4 h-4 text-neutral-01" />,
-      title: "Published Content",
-      value: "—",
+      icon: <WorkOrderIcon className="w-6 h-6 text-neutral-01" />,
+      title: "Total Pekerjaan (Hari ini)",
+      value: stats_raw?.totalHariIni ?? 0,
       indicator: "up",
-      progress: "—",
-      description: "total in CMS",
+      progress: "",
+      description: "total pekerjaan ditugaskan",
     },
     {
-      icon: <ClosedBookIcon className="w-4 h-4 text-neutral-01" />,
-      title: "Total Article Views",
-      value: (gaStats?.visitorsThisMonth ?? 0).toLocaleString(),
-      indicator: (gaStats?.visitorsThisMonthChange ?? 0) >= 0 ? "up" : "down",
-      progress: formatChange(gaStats?.visitorsThisMonthChange ?? 0),
-      description: "page views this month",
+      icon: <CalendarIcon className="w-6 h-6 text-neutral-01" />,
+      title: "Total Pekerjaan (Bulan ini)",
+      value: (stats_raw?.totalBulanIni ?? 0).toLocaleString("id-ID"),
+      indicator: "up",
+      progress: "",
+      description: "total pekerjaan bulan ini",
+    },
+    {
+      icon: <SuccessIcon className="w-6 h-6 text-neutral-01" />,
+      title: "Pekerjaan Selesai",
+      value: stats_raw?.totalSelesai ?? 0,
+      indicator: "up",
+      progress: `${pctSelesai}%`,
+      description: "dari total pekerjaan",
+    },
+    {
+      icon: <WarningIcon className="w-6 h-6 text-neutral-01" />,
+      title: "Pekerjaan Belum Selesai",
+      value: stats_raw?.totalBelumSelesai ?? 0,
+      indicator: "down",
+      progress: `${pctBelum}%`,
+      description: "dari total pekerjaan",
     },
   ];
 
   return (
     <div className="w-full flex flex-col gap-4">
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
         <Heading3>Dashboard</Heading3>
-        <p className="text-xs text-grey font-normal">
-          Summary of key metrics and statistics
+        <p className="text-sm text-grey font-normal">
+          Selamat datang kembali, {user?.namaLengkap ?? "Teknisi"}
         </p>
       </div>
-      <div className="w-full grid grid-cols-4 gap-4">
+      <div className="w-full grid grid-cols-2 lg:grid-cols-4 gap-4">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
-          : stats.map((stat, index) => (
-              <StatCard key={index} {...stat} />
-            ))}
+          : stats.map((stat, index) => <StatCard key={index} {...stat} />)}
       </div>
     </div>
   );

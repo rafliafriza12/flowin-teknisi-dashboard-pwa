@@ -13,6 +13,7 @@ import {
   GET_WORK_ORDERS_BY_KONEKSI_DATA,
   GET_PROGRES_WORK_ORDER,
   GET_LAPORAN,
+  GET_DASHBOARD_STATS,
 } from "@/libs/graphql/queries";
 import {
   TERIMA_PEKERJAAN,
@@ -37,6 +38,7 @@ import type {
   IProgresData,
   ILaporan,
 } from "@/types/workOrder";
+import type { DashboardWorkOrderData } from "@/components/molecules/dashboard/DashboardWorkOrderItem";
 
 // Re-export types
 export type {
@@ -68,6 +70,36 @@ interface ProgresWorkOrderResponse {
   progresWorkOrder: IProgresData | null;
 }
 
+// ─── Dashboard Stats Types ────────────────────────────────────────────────────
+
+export interface GrafikDataPoint {
+  label: string;
+  total: number;
+  selesai: number;
+}
+
+export interface DistribusiJenisItem {
+  jenis: string;
+  total: number;
+}
+
+export interface DashboardStats {
+  totalHariIni: number;
+  totalBulanIni: number;
+  totalSelesai: number;
+  totalBelumSelesai: number;
+  grafikMingguan: GrafikDataPoint[];
+  grafikBulanan: GrafikDataPoint[];
+  grafikTahunan: GrafikDataPoint[];
+  distribusiJenis: DistribusiJenisItem[];
+  pekerjaanHariIni: DashboardWorkOrderData[];
+  pekerjaanTerakhir: DashboardWorkOrderData[];
+}
+
+interface DashboardStatsResponse {
+  dashboardStats: DashboardStats;
+}
+
 // ─── Query Hooks ──────────────────────────────────────────────────────────────
 
 /**
@@ -90,6 +122,16 @@ export function useWorkOrdersSaya(
     queryKeys.workOrders.sayaFiltered(filters as Record<string, unknown>),
     GET_WORK_ORDERS_SAYA,
     variables as Record<string, unknown>,
+  );
+}
+
+/**
+ * Ambil statistik dashboard agregat dari backend (hari ini, bulan ini, grafik, distribusi).
+ */
+export function useDashboardStats() {
+  return useGraphQLQuery<DashboardStatsResponse>(
+    queryKeys.workOrders.dashboardStats(),
+    GET_DASHBOARD_STATS,
   );
 }
 

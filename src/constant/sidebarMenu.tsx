@@ -1,6 +1,6 @@
 import DashboardIcon from "@/components/atoms/icons/DashboardIcon";
 import WorkOrderIcon from "@/components/atoms/icons/WorkOrderIcon";
-
+import SimplePaperNoteIcon from "@/components/atoms/icons/SimplePaperNote";
 import { IconProps } from "@/types/iconProps";
 
 export type SidebarMenuItem = {
@@ -15,6 +15,12 @@ export const sidebarMenu: SidebarMenuItem[] = [
     name: "Dashboard",
     url: "/",
     icon: DashboardIcon,
+    subMenu: [],
+  },
+  {
+    name: "Tugas Sekarang",
+    url: "/tugas-sekarang",
+    icon: SimplePaperNoteIcon,
     subMenu: [],
   },
   {

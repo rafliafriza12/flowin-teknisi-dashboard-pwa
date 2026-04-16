@@ -16,6 +16,9 @@ const WORK_ORDER_FIELDS = `
     nik
     noKK
     imb
+    nikUrl
+    kkUrl
+    imbUrl
     alamat
     kelurahan
     kecamatan
@@ -185,6 +188,54 @@ export const GET_LAPORAN = `
       Status
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const GET_DASHBOARD_STATS = `
+  query DashboardStats {
+    dashboardStats {
+      totalHariIni
+      totalBulanIni
+      totalSelesai
+      totalBelumSelesai
+      grafikMingguan {
+        label
+        total
+        selesai
+      }
+      grafikBulanan {
+        label
+        total
+        selesai
+      }
+      grafikTahunan {
+        label
+        total
+        selesai
+      }
+      distribusiJenis {
+        jenis
+        total
+      }
+      pekerjaanHariIni {
+        id
+        jenisPekerjaan
+        status
+        createdAt
+        koneksiData {
+          alamat
+        }
+      }
+      pekerjaanTerakhir {
+        id
+        jenisPekerjaan
+        status
+        createdAt
+        koneksiData {
+          alamat
+        }
+      }
     }
   }
 `;

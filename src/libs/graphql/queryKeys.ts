@@ -298,6 +298,8 @@ export const queryKeys = {
       [...queryKeys.workOrders.all, "workflowChain", idKoneksiData] as const,
     progres: (workOrderId: string) =>
       [...queryKeys.workOrders.all, "progres", workOrderId] as const,
+    dashboardStats: () =>
+      [...queryKeys.workOrders.all, "dashboardStats"] as const,
   },
   laporan: {
     all: ["laporan"] as const,

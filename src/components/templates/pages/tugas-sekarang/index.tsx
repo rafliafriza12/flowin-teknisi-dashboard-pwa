@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { useMe } from "@/services/authService";
 import { useWorkOrder, useWorkflowChain } from "@/services/workOrderService";
 import StatusBadge from "@/components/atoms/StatusBadge";
 import {
@@ -21,14 +22,45 @@ import {
   WARNA_STATUS_RESPON,
 } from "@/types/workOrder";
 import { formatDate } from "@/libs/utils";
+import SimplePaperNoteIcon from "@/components/atoms/icons/SimplePaperNote";
+import WorkOrderIcon from "@/components/atoms/icons/WorkOrderIcon";
 
-interface PekerjaanDetailTemplateProps {
-  id: string;
-}
+// ─── Empty State ──────────────────────────────────────────────────────────────
 
-const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
-  id,
-}) => {
+const TugasKosong: React.FC = () => (
+  <div className="flex flex-col items-center justify-center py-20 px-6">
+    <div className="w-20 h-20 rounded-full bg-earn-craft-light flex items-center justify-center mb-5">
+      <SimplePaperNoteIcon className="w-9 h-9 text-moss-stone" />
+    </div>
+    <h2 className="text-lg font-bold text-neutral-03 mb-2">
+      Tidak Ada Tugas Aktif
+    </h2>
+    <p className="text-sm text-grey text-center max-w-xs mb-6">
+      Kamu belum memiliki pekerjaan yang sedang aktif. Tugas akan muncul di sini
+      setelah kamu menerima pekerjaan yang di-assign oleh admin.
+    </p>
+    <Link
+      href="/pekerjaan"
+      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-moss-stone text-white text-sm font-medium hover:bg-moss-stone/90 transition-colors"
+    >
+      <WorkOrderIcon className="w-4 h-4" />
+      Lihat Semua Pekerjaan
+    </Link>
+  </div>
+);
+
+// ─── Loading State ────────────────────────────────────────────────────────────
+
+const TugasLoading: React.FC = () => (
+  <div className="flex flex-col items-center justify-center py-20 gap-3">
+    <div className="w-8 h-8 border-2 border-moss-stone border-t-transparent rounded-full animate-spin" />
+    <p className="text-sm text-grey">Memuat tugas sekarang...</p>
+  </div>
+);
+
+// ─── Detail Tugas (sama persis dengan PekerjaanDetailTemplate) ────────────────
+
+const TugasDetail: React.FC<{ id: string }> = ({ id }) => {
   const { data, isLoading, isError, error } = useWorkOrder(id);
   const workOrder = data?.workOrder;
 
@@ -36,32 +68,25 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
     workOrder?.idKoneksiData ?? "",
   );
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-8 h-8 border-2 border-moss-stone border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-grey">Memuat detail pekerjaan...</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <TugasLoading />;
 
   if (isError || !workOrder) {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="text-center">
           <p className="text-sm text-red-600 font-medium">
-            {isError ? "Gagal memuat data" : "Pekerjaan tidak ditemukan"}
+            {isError
+              ? "Gagal memuat data pekerjaan"
+              : "Pekerjaan tidak ditemukan"}
           </p>
           <p className="text-xs text-grey mt-1">
-            {error?.message || "Work order tidak ditemukan"}
+            {error?.message || "Silakan coba lagi atau hubungi admin"}
           </p>
           <Link
             href="/pekerjaan"
             className="inline-block mt-4 px-4 py-2 rounded-lg bg-moss-stone text-white text-sm font-medium hover:bg-moss-stone/90 transition-colors"
           >
-            ← Kembali ke Daftar
+            Lihat Semua Pekerjaan
           </Link>
         </div>
       </div>
@@ -70,27 +95,28 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
 
   return (
     <div className="w-full flex flex-col gap-4">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm">
-        <Link
-          href="/pekerjaan"
-          className="text-grey hover:text-moss-stone transition-colors"
-        >
-          Pekerjaan
-        </Link>
-        <span className="text-grey">/</span>
-        <span className="text-neutral-03 font-medium">
-          {LABEL_JENIS_PEKERJAAN[workOrder.jenisPekerjaan]}
-        </span>
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-earn-craft-light flex items-center justify-center">
+          <SimplePaperNoteIcon className="w-4 h-4 text-moss-stone" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-neutral-03 leading-tight">
+            Tugas Sekarang
+          </h1>
+          <p className="text-xs text-grey">
+            Pekerjaan yang sedang aktif dikerjakan
+          </p>
+        </div>
       </div>
 
       {/* Header Card */}
       <div className="bg-white rounded-xl border border-grey-stroke p-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-lg font-bold text-neutral-03">
+            <h2 className="text-base font-bold text-neutral-03">
               {LABEL_JENIS_PEKERJAAN[workOrder.jenisPekerjaan]}
-            </h1>
+            </h2>
             {workOrder.koneksiData ? (
               <p className="text-sm text-grey mt-0.5">
                 📍 {workOrder.koneksiData.alamat},{" "}
@@ -103,10 +129,18 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
               </p>
             ) : null}
           </div>
-          <StatusBadge
-            label={LABEL_STATUS_PEKERJAAN[workOrder.status]}
-            colorClass={WARNA_STATUS_PEKERJAAN[workOrder.status]}
-          />
+          <div className="flex flex-col items-end gap-2">
+            <StatusBadge
+              label={LABEL_STATUS_PEKERJAAN[workOrder.status]}
+              colorClass={WARNA_STATUS_PEKERJAAN[workOrder.status]}
+            />
+            <Link
+              href={`/pekerjaan/${workOrder.id}`}
+              className="text-[11px] text-moss-stone hover:underline"
+            >
+              Lihat di Daftar →
+            </Link>
+          </div>
         </div>
 
         {/* Info Grid */}
@@ -147,37 +181,25 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
         </div>
       </div>
 
-      {/* Two-column layout for larger screens */}
+      {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Main content — 2 cols */}
+        {/* Main — 2 cols */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          {/* Respon Awal — only shows if needed */}
           <ResponAwalSection workOrder={workOrder} />
-
-          {/* Tim Management */}
           <TimManagementSection workOrder={workOrder} />
-
-          {/* Pengerjaan */}
           <PengerjaanSection workOrder={workOrder} />
-
-          {/* Riwayat */}
           <RiwayatSection workOrder={workOrder} />
         </div>
 
         {/* Sidebar — 1 col */}
         <div className="flex flex-col gap-4">
-          {/* Laporan detail — hanya untuk penyelesaian_laporan */}
           {workOrder.jenisPekerjaan === "penyelesaian_laporan" &&
             workOrder.idLaporan && (
               <LaporanSection idLaporan={workOrder.idLaporan} />
             )}
-
-          {/* Koneksi Data */}
           {workOrder.koneksiData && (
             <KoneksiDataSection koneksiData={workOrder.koneksiData} />
           )}
-
-          {/* Workflow Chain */}
           {!chainLoading && chainData?.workflowChain && (
             <WorkflowChainTimeline
               chain={chainData.workflowChain.filter(
@@ -185,8 +207,6 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
               )}
             />
           )}
-
-          {/* Alasan Penolakan (jika ada) */}
           {workOrder.alasanPenolakan && (
             <div className="bg-white rounded-xl border border-grey-stroke p-4">
               <h3 className="text-sm font-semibold text-neutral-03 mb-2">
@@ -209,7 +229,7 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
   );
 };
 
-// ─── Helper Component ─────────────────────────────────────────────────────────
+// ─── Helper ───────────────────────────────────────────────────────────────────
 
 function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -226,4 +246,17 @@ function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default PekerjaanDetailTemplate;
+// ─── Main Template ────────────────────────────────────────────────────────────
+
+const TugasSekarangTemplate: React.FC = () => {
+  const { data: meData, isLoading: meLoading } = useMe();
+  const pekerjaanSekarangId = meData?.me?.pekerjaanSekarang;
+
+  if (meLoading) return <TugasLoading />;
+
+  if (!pekerjaanSekarangId) return <TugasKosong />;
+
+  return <TugasDetail id={pekerjaanSekarangId} />;
+};
+
+export default TugasSekarangTemplate;

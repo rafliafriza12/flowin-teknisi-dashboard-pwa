@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
   useSimpanProgres,
   useKirimHasil,
   useProgresWorkOrder,
 } from "@/services/workOrderService";
-import { IWorkOrder, JenisPekerjaan } from "@/types/workOrder";
+import { IWorkOrder, IProgresData, JenisPekerjaan } from "@/types/workOrder";
 import {
   uploadToCloudinary,
   validateImageFile,
@@ -15,6 +16,19 @@ import {
 } from "@/libs/cloudinary";
 import CircularProgress from "@/components/atoms/CircularProgress";
 import { showToast, showErrorToast } from "@/libs/toast";
+
+// Leaflet hanya jalan di browser — load dinamis
+const KoordinatPicker = dynamic(
+  () => import("@/components/atoms/KoordinatPicker"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-64 rounded-xl bg-gray-100 border border-grey-stroke flex items-center justify-center">
+        <p className="text-xs text-grey">Memuat peta...</p>
+      </div>
+    ),
+  },
+);
 
 interface PengerjaanSectionProps {
   workOrder: IWorkOrder;
@@ -129,8 +143,6 @@ interface UploadButtonProps {
   label: string;
   uploading: boolean;
   uploadProgress: number;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  cameraInputRef: React.RefObject<HTMLInputElement | null>;
   onCancel: () => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   currentUrl?: string;
@@ -141,77 +153,70 @@ const UploadButton: React.FC<UploadButtonProps> = ({
   label,
   uploading,
   uploadProgress,
-  fileInputRef,
-  cameraInputRef,
   onCancel,
   onFileChange,
   currentUrl,
   onRemove,
-}) => (
-  <div>
-    {/* Input untuk galeri/folder */}
-    <input
-      ref={fileInputRef}
-      type="file"
-      accept="image/jpeg,image/png,image/jpg,image/webp"
-      onChange={onFileChange}
-      className="hidden"
-      disabled={uploading}
-    />
-    {/* Input untuk kamera */}
-    <input
-      ref={cameraInputRef}
-      type="file"
-      accept="image/jpeg,image/png,image/jpg,image/webp"
-      capture="environment"
-      onChange={onFileChange}
-      className="hidden"
-      disabled={uploading}
-    />
-    {currentUrl ? (
-      <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden border border-grey-stroke group">
-        <Image src={currentUrl} alt={label} fill className="object-cover" />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
-        <button
-          type="button"
-          onClick={onRemove}
-          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          ×
-        </button>
-      </div>
-    ) : uploading ? (
-      <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
-        <CircularProgress progress={uploadProgress} size={36} strokeWidth={3} />
-        <p className="text-xs text-neutral-03 flex-1">Mengunggah {label}...</p>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-2 py-1 rounded border border-grey-stroke text-xs text-neutral-03 hover:bg-gray-100"
-        >
-          Batal
-        </button>
-      </div>
-    ) : (
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => cameraInputRef.current?.click()}
-          className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey"
-        >
-          Kamera
-        </button>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey"
-        >
-          Galeri
-        </button>
-      </div>
-    )}
-  </div>
-);
+}) => {
+  return (
+    <div>
+      {currentUrl ? (
+        <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden border border-grey-stroke group">
+          <Image src={currentUrl} alt={label} fill className="object-cover" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            ×
+          </button>
+        </div>
+      ) : uploading ? (
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
+          <CircularProgress
+            progress={uploadProgress}
+            size={36}
+            strokeWidth={3}
+          />
+          <p className="text-xs text-neutral-03 flex-1">
+            Mengunggah {label}...
+          </p>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-2 py-1 rounded border border-grey-stroke text-xs text-neutral-03 hover:bg-gray-100"
+          >
+            Batal
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {/* Input langsung di dalam label — paling reliable di semua browser/PWA */}
+          <label className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey cursor-pointer">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,image/webp"
+              capture="environment"
+              onChange={onFileChange}
+              className="sr-only"
+            />
+            Kamera
+          </label>
+          <label className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey cursor-pointer">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,image/webp"
+              onChange={onFileChange}
+              className="sr-only"
+            />
+            Galeri
+          </label>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Shared style constants ───────────────────────────────────────────────────
 
@@ -280,44 +285,10 @@ const FormSurvei: React.FC<{
         <label className="text-xs font-medium text-neutral-03 mb-1 block">
           Koordinat
         </label>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <input
-              type="number"
-              step="any"
-              placeholder="Longitude"
-              value={data.koordinat.longitude}
-              onChange={(e) =>
-                set("koordinat", {
-                  ...data.koordinat,
-                  longitude: e.target.value,
-                })
-              }
-              className={inputClass}
-            />
-            <p className="text-[10px] text-grey mt-0.5">
-              Longitude (-180 s/d 180)
-            </p>
-          </div>
-          <div>
-            <input
-              type="number"
-              step="any"
-              placeholder="Latitude"
-              value={data.koordinat.latitude}
-              onChange={(e) =>
-                set("koordinat", {
-                  ...data.koordinat,
-                  latitude: e.target.value,
-                })
-              }
-              className={inputClass}
-            />
-            <p className="text-[10px] text-grey mt-0.5">
-              Latitude (-90 s/d 90)
-            </p>
-          </div>
-        </div>
+        <KoordinatPicker
+          value={data.koordinat}
+          onChange={(coords) => set("koordinat", coords)}
+        />
       </div>
       <div>
         <label className="text-xs font-medium text-neutral-03 mb-1 block">
@@ -327,8 +298,6 @@ const FormSurvei: React.FC<{
           label="Upload Foto Jaringan"
           uploading={jaringanUpload.uploading}
           uploadProgress={jaringanUpload.uploadProgress}
-          fileInputRef={jaringanUpload.fileInputRef}
-          cameraInputRef={jaringanUpload.cameraInputRef}
           onCancel={jaringanUpload.cancelUpload}
           onFileChange={handleJaringanChange}
           currentUrl={data.urlJaringan}
@@ -357,8 +326,6 @@ const FormSurvei: React.FC<{
           label="Upload Foto Posisi Bak"
           uploading={bakUpload.uploading}
           uploadProgress={bakUpload.uploadProgress}
-          fileInputRef={bakUpload.fileInputRef}
-          cameraInputRef={bakUpload.cameraInputRef}
           onCancel={bakUpload.cancelUpload}
           onFileChange={handleBakChange}
           currentUrl={data.urlPosisiBak}
@@ -373,8 +340,6 @@ const FormSurvei: React.FC<{
           label="Upload Foto Posisi Meteran"
           uploading={meteranUpload.uploading}
           uploadProgress={meteranUpload.uploadProgress}
-          fileInputRef={meteranUpload.fileInputRef}
-          cameraInputRef={meteranUpload.cameraInputRef}
           onCancel={meteranUpload.cancelUpload}
           onFileChange={handleMeteranChange}
           currentUrl={data.posisiMeteran}
@@ -499,8 +464,6 @@ const FormRab: React.FC<{
           label="Upload Dokumen RAB"
           uploading={uploading}
           uploadProgress={uploadProgress}
-          fileInputRef={fileInputRef}
-          cameraInputRef={cameraInputRef}
           onCancel={cancelUpload}
           onFileChange={handleFileChange}
           currentUrl={data.urlRab}
@@ -578,8 +541,6 @@ const FormPemasangan: React.FC<{
           label="Upload Foto Rumah"
           uploading={rumahUpload.uploading}
           uploadProgress={rumahUpload.uploadProgress}
-          fileInputRef={rumahUpload.fileInputRef}
-          cameraInputRef={rumahUpload.cameraInputRef}
           onCancel={rumahUpload.cancelUpload}
           onFileChange={makeFileHandler("fotoRumah", rumahUpload)}
           currentUrl={data.fotoRumah}
@@ -594,8 +555,6 @@ const FormPemasangan: React.FC<{
           label="Upload Foto Meteran"
           uploading={meteranUpload.uploading}
           uploadProgress={meteranUpload.uploadProgress}
-          fileInputRef={meteranUpload.fileInputRef}
-          cameraInputRef={meteranUpload.cameraInputRef}
           onCancel={meteranUpload.cancelUpload}
           onFileChange={makeFileHandler("fotoMeteran", meteranUpload)}
           currentUrl={data.fotoMeteran}
@@ -610,8 +569,6 @@ const FormPemasangan: React.FC<{
           label="Upload Foto Meteran & Rumah"
           uploading={meteranRumahUpload.uploading}
           uploadProgress={meteranRumahUpload.uploadProgress}
-          fileInputRef={meteranRumahUpload.fileInputRef}
-          cameraInputRef={meteranRumahUpload.cameraInputRef}
           onCancel={meteranRumahUpload.cancelUpload}
           onFileChange={makeFileHandler(
             "fotoMeteranDanRumah",
@@ -703,23 +660,6 @@ const FormPengawasan: React.FC<{
           ))}
         </div>
       )}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/jpg,image/webp"
-        onChange={handleFileChange}
-        className="hidden"
-        disabled={uploading}
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/jpg,image/webp"
-        capture="environment"
-        onChange={handleFileChange}
-        className="hidden"
-        disabled={uploading}
-      />
       {uploading ? (
         <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
           <CircularProgress
@@ -738,22 +678,26 @@ const FormPengawasan: React.FC<{
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => cameraInputRef.current?.click()}
-            className="flex items-center justify-center gap-1.5 w-full p-3 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-sm text-grey"
-          >
-            <span>📷</span>
+          {/* Input langsung di dalam label — reliable di iOS Safari & Android */}
+          <label className="flex items-center justify-center gap-1.5 w-full p-3 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-sm text-grey cursor-pointer">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,image/webp"
+              capture="environment"
+              onChange={handleFileChange}
+              className="sr-only"
+            />
             Kamera
-          </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-1.5 w-full p-3 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-sm text-grey"
-          >
-            <span>🖼️</span>
-            Galeri ({data.urlGambar.length} foto)
-          </button>
+          </label>
+          <label className="flex items-center justify-center gap-1.5 w-full p-3 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-sm text-grey cursor-pointer">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,image/webp"
+              onChange={handleFileChange}
+              className="sr-only"
+            />
+            🖼️ Galeri ({data.urlGambar.length} foto)
+          </label>
         </div>
       )}
       <div>
@@ -768,6 +712,204 @@ const FormPengawasan: React.FC<{
           className={textareaClass}
         />
       </div>
+    </div>
+  );
+};
+
+// ─── Read-only field helper ───────────────────────────────────────────────────
+
+const ROField: React.FC<{ label: string; children: React.ReactNode }> = ({
+  label,
+  children,
+}) => (
+  <div>
+    <p className="text-[10px] font-medium text-grey uppercase tracking-wider mb-1">
+      {label}
+    </p>
+    {children}
+  </div>
+);
+
+const ROText: React.FC<{
+  value?: string | number | null;
+  fallback?: string;
+}> = ({ value, fallback = "—" }) => (
+  <p className="text-sm text-neutral-03">
+    {value !== null && value !== undefined && value !== "" ? value : fallback}
+  </p>
+);
+
+const ROImage: React.FC<{ url?: string | null; alt: string }> = ({
+  url,
+  alt,
+}) => {
+  if (!url) return <p className="text-sm text-grey italic">Tidak ada foto</p>;
+  return (
+    <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden border border-grey-stroke">
+      <Image src={url} alt={alt} fill className="object-cover" />
+    </div>
+  );
+};
+
+// ─── Per-jenis read-only views ────────────────────────────────────────────────
+
+const ReadOnlySurvei: React.FC<{ p: IProgresData }> = ({ p }) => (
+  <div className="space-y-3">
+    <ROField label="Koordinat">
+      {p.koordinat ? (
+        <p className="text-sm text-neutral-03">
+          {p.koordinat.latitude}, {p.koordinat.longitude}
+        </p>
+      ) : (
+        <ROText value={null} />
+      )}
+    </ROField>
+    <ROField label="Foto Jaringan">
+      <ROImage url={p.urlJaringan} alt="Foto Jaringan" />
+    </ROField>
+    <ROField label="Diameter Pipa">
+      <ROText value={p.diameterPipa != null ? `${p.diameterPipa} mm` : null} />
+    </ROField>
+    <ROField label="Foto Posisi Bak">
+      <ROImage url={p.urlPosisiBak} alt="Foto Posisi Bak" />
+    </ROField>
+    <ROField label="Foto Posisi Meteran">
+      <ROImage url={p.posisiMeteran} alt="Foto Posisi Meteran" />
+    </ROField>
+    <ROField label="Jumlah Penghuni">
+      <ROText
+        value={p.jumlahPenghuni != null ? `${p.jumlahPenghuni} orang` : null}
+      />
+    </ROField>
+    <ROField label="Standar Pemasangan">
+      <ROText
+        value={
+          p.standar === true
+            ? "Standar"
+            : p.standar === false
+              ? "Tidak Standar"
+              : null
+        }
+      />
+    </ROField>
+    <ROField label="Catatan">
+      <ROText value={p.catatan} />
+    </ROField>
+  </div>
+);
+
+const ReadOnlyRab: React.FC<{ p: IProgresData }> = ({ p }) => (
+  <div className="space-y-3">
+    <ROField label="Total Biaya">
+      <ROText
+        value={
+          p.totalBiaya != null
+            ? `Rp ${p.totalBiaya.toLocaleString("id-ID")}`
+            : null
+        }
+      />
+    </ROField>
+    <ROField label="Dokumen RAB">
+      <ROImage url={p.urlRab} alt="Dokumen RAB" />
+    </ROField>
+    <ROField label="Catatan">
+      <ROText value={p.catatan} />
+    </ROField>
+  </div>
+);
+
+const ReadOnlyPemasangan: React.FC<{ p: IProgresData }> = ({ p }) => (
+  <div className="space-y-3">
+    <ROField label="Seri Meteran">
+      <ROText value={p.seriMeteran} />
+    </ROField>
+    <ROField label="Foto Rumah">
+      <ROImage url={p.fotoRumah} alt="Foto Rumah" />
+    </ROField>
+    <ROField label="Foto Meteran">
+      <ROImage url={p.fotoMeteran} alt="Foto Meteran" />
+    </ROField>
+    <ROField label="Foto Meteran &amp; Rumah">
+      <ROImage url={p.fotoMeteranDanRumah} alt="Foto Meteran dan Rumah" />
+    </ROField>
+    <ROField label="Catatan">
+      <ROText value={p.catatan} />
+    </ROField>
+  </div>
+);
+
+const ReadOnlyPengawasan: React.FC<{ p: IProgresData }> = ({ p }) => (
+  <div className="space-y-3">
+    <ROField label="Foto Bukti">
+      {p.urlGambar && p.urlGambar.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {p.urlGambar.map((url: string, i: number) => (
+            <div
+              key={i}
+              className="relative aspect-square rounded-lg overflow-hidden border border-grey-stroke"
+            >
+              <Image
+                src={url}
+                alt={`Foto ${i + 1}`}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1">
+                <p className="text-[10px] text-white">{i + 1}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-grey italic">Tidak ada foto</p>
+      )}
+    </ROField>
+    <ROField label="Catatan">
+      <ROText value={p.catatan} />
+    </ROField>
+  </div>
+);
+
+// ─── Read-only wrapper (dikirim / selesai) ────────────────────────────────────
+
+const ReadOnlyProgresView: React.FC<{
+  workOrder: IWorkOrder;
+  progres: IProgresData;
+}> = ({ workOrder, progres }) => {
+  const isDikirim = workOrder.status === "dikirim";
+  const isSelesai = workOrder.status === "selesai";
+
+  return (
+    <div className="bg-white rounded-xl border border-grey-stroke p-4">
+      <h3 className="text-sm font-semibold text-neutral-03 mb-3">Pengerjaan</h3>
+
+      {/* Status banner */}
+      {isDikirim && (
+        <div className="mb-4 p-3 rounded-lg bg-purple-50 border border-purple-200">
+          <p className="text-xs font-medium text-purple-800">
+            Hasil pekerjaan sudah dikirim — menunggu review admin.
+          </p>
+        </div>
+      )}
+      {isSelesai && (
+        <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200">
+          <p className="text-xs font-medium text-green-800">
+            Pekerjaan telah disetujui dan selesai.
+          </p>
+        </div>
+      )}
+
+      {/* Data read-only */}
+      {progres.jenisPekerjaan === "survei" && <ReadOnlySurvei p={progres} />}
+      {progres.jenisPekerjaan === "rab" && <ReadOnlyRab p={progres} />}
+      {progres.jenisPekerjaan === "pemasangan" && (
+        <ReadOnlyPemasangan p={progres} />
+      )}
+      {(progres.jenisPekerjaan === "pengawasan_pemasangan" ||
+        progres.jenisPekerjaan === "pengawasan_setelah_pemasangan" ||
+        progres.jenisPekerjaan === "penyelesaian_laporan") && (
+        <ReadOnlyPengawasan p={progres} />
+      )}
     </div>
   );
 };
@@ -926,8 +1068,10 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
     workOrder.status,
   );
   const canSubmit = ["sedang_dikerjakan", "revisi"].includes(workOrder.status);
+  const isReadOnly =
+    workOrder.status === "dikirim" || workOrder.status === "selesai";
 
-  if (!canWork && workOrder.status !== "dikirim") return null;
+  if (!canWork && !isReadOnly) return null;
 
   if (progresLoading) {
     return (
@@ -943,6 +1087,35 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
         </div>
       </div>
     );
+  }
+
+  // Tampilkan read-only view ketika sudah dikirim atau selesai
+  if (isReadOnly) {
+    const progres = progresResult?.progresWorkOrder;
+    if (!progres) {
+      return (
+        <div className="bg-white rounded-xl border border-grey-stroke p-4">
+          <h3 className="text-sm font-semibold text-neutral-03 mb-3">
+            Pengerjaan
+          </h3>
+          <div
+            className={`p-3 rounded-lg ${workOrder.status === "selesai" ? "bg-green-50 border border-green-200" : "bg-purple-50 border border-purple-200"}`}
+          >
+            <p
+              className={`text-xs font-medium ${workOrder.status === "selesai" ? "text-green-800" : "text-purple-800"}`}
+            >
+              {workOrder.status === "selesai"
+                ? " Pekerjaan telah disetujui dan selesai."
+                : " Hasil pekerjaan sudah dikirim — menunggu review admin."}
+            </p>
+          </div>
+          <p className="text-xs text-grey mt-3">
+            Data pengerjaan tidak tersedia.
+          </p>
+        </div>
+      );
+    }
+    return <ReadOnlyProgresView workOrder={workOrder} progres={progres} />;
   }
 
   const getPayload = () =>
@@ -998,15 +1171,6 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
   return (
     <div className="bg-white rounded-xl border border-grey-stroke p-4">
       <h3 className="text-sm font-semibold text-neutral-03 mb-3">Pengerjaan</h3>
-
-      {/* Status dikirim — read-only */}
-      {workOrder.status === "dikirim" && (
-        <div className="p-3 rounded-lg bg-purple-50 border border-purple-200">
-          <p className="text-xs font-medium text-purple-800">
-            Hasil pekerjaan sudah dikirim dan menunggu review admin.
-          </p>
-        </div>
-      )}
 
       {canWork && (
         <>
