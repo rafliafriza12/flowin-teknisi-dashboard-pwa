@@ -107,14 +107,14 @@ export interface IKoneksiData {
 export interface IRiwayatReview {
   status: string;
   catatan?: string | null;
-  oleh: IUser;
+  oleh: string;
   tanggal: string;
 }
 
 export interface IRiwayatRespon {
   aksi: string;
   alasan?: string | null;
-  oleh: IUser;
+  oleh: string;
   tanggal: string;
 }
 

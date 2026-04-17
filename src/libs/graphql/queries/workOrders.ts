@@ -58,10 +58,7 @@ const WORK_ORDER_FIELDS = `
   riwayatRespon {
     aksi
     alasan
-    oleh {
-      id
-      namaLengkap
-    }
+    oleh
     tanggal
   }
   idSurvei
@@ -75,10 +72,7 @@ const WORK_ORDER_FIELDS = `
   riwayatReview {
     status
     catatan
-    oleh {
-      id
-      namaLengkap
-    }
+    oleh
     tanggal
   }
   createdAt

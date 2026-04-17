@@ -28,20 +28,14 @@ const MUTATION_RESPONSE_FIELDS = `
     riwayatRespon {
       aksi
       alasan
-      oleh {
-        id
-        namaLengkap
-      }
+      oleh
       tanggal
     }
     catatanReview
     riwayatReview {
       status
       catatan
-      oleh {
-        id
-        namaLengkap
-      }
+      oleh
       tanggal
     }
     createdAt

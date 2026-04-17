@@ -34,7 +34,7 @@ const RiwayatSection: React.FC<RiwayatSectionProps> = ({ workOrder }) => {
                       {item.aksi.replace(/_/g, " ")}
                     </span>
                     <span className="text-[10px] text-grey">
-                      oleh {item.oleh.namaLengkap}
+                      oleh {item.oleh}
                     </span>
                   </div>
                   {item.alasan && (
@@ -79,7 +79,7 @@ const RiwayatSection: React.FC<RiwayatSectionProps> = ({ workOrder }) => {
                         {item.status.replace(/_/g, " ")}
                       </span>
                       <span className="text-[10px] text-grey">
-                        oleh {item.oleh.namaLengkap}
+                        oleh {item.oleh}
                       </span>
                     </div>
                     {item.catatan && (
