@@ -31,6 +31,7 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/access-denied",
+  "/offline",
 ];
 
 // File statis PWA yang TIDAK boleh di-intercept middleware

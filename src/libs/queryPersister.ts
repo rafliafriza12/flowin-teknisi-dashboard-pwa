@@ -1,27 +1,37 @@
 /**
  * queryPersister.ts
  *
- * Menyimpan TanStack Query cache ke IndexedDB menggunakan idb-keyval.
- * Data tetap tersedia saat offline bahkan setelah page refresh.
+ * Persister kustom untuk TanStack Query:
+ * - Selalu MENULIS ke IndexedDB (agar data selalu fresh saat offline)
+ * - Hanya MEMBACA dari IndexedDB ketika offline (agar online selalu fresh dari server)
  */
 
-import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { get, set, del } from "idb-keyval";
+import type {
+  PersistedClient,
+  Persister,
+} from "@tanstack/react-query-persist-client";
 
 const IDB_KEY = "flowin-teknisi-query-cache";
 
-/**
- * Async storage adapter yang menggunakan idb-keyval (IndexedDB).
- */
-const idbStorage = {
-  getItem: (key: string) => get<string>(key).then((v) => v ?? null),
-  setItem: (key: string, value: string) => set(key, value),
-  removeItem: (key: string) => del(key),
-};
+export const queryPersister: Persister = {
+  /** Selalu simpan ke IndexedDB agar siap dipakai saat offline */
+  persistClient: async (client: PersistedClient) => {
+    await set(IDB_KEY, JSON.stringify(client));
+  },
 
-export const queryPersister = createAsyncStoragePersister({
-  storage: idbStorage,
-  key: IDB_KEY,
-  // Throttle serialisasi agar tidak terlalu sering menulis ke IndexedDB
-  throttleTime: 2000,
-});
+  /** Hanya restore dari IndexedDB ketika sedang offline */
+  restoreClient: async (): Promise<PersistedClient | undefined> => {
+    // Saat online → tidak restore cache lama, biarkan query fetch fresh dari server
+    if (typeof navigator !== "undefined" && navigator.onLine) {
+      return undefined;
+    }
+    // Saat offline → gunakan cache IndexedDB
+    const data = await get<string>(IDB_KEY);
+    return data ? (JSON.parse(data) as PersistedClient) : undefined;
+  },
+
+  removeClient: async () => {
+    await del(IDB_KEY);
+  },
+};

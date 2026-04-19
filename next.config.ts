@@ -9,12 +9,29 @@ const withPWA = withPWAInit({
   // Dev: SW dimatikan agar tidak bentrok dengan Next.js HMR
   // Untuk test PWA di localhost → jalankan: pnpm build && pnpm start
   disable: process.env.NODE_ENV === "development",
+  // Fallback halaman saat navigasi offline & cache JS/CSS belum ada
+  fallbacks: {
+    document: "/offline",
+  },
   workboxOptions: {
     disableDevLogs: true,
-    // Jangan cache request API/GraphQL
+    // Jangan cache request API/GraphQL & HMR
     exclude: [/\/api\//, /\/_next\/webpack-hmr/],
     runtimeCaching: [
-      // Cache halaman navigasi (offline shell)
+      // Cache RSC payload (navigasi App Router Next.js)
+      {
+        urlPattern: /\/_next\/data\/.*/,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "flowin-rsc-cache",
+          expiration: {
+            maxEntries: 50,
+            maxAgeSeconds: 24 * 60 * 60,
+          },
+          networkTimeoutSeconds: 5,
+        },
+      },
+      // Cache halaman navigasi HTML
       {
         urlPattern: /^https?.*/,
         handler: "NetworkFirst",
@@ -24,7 +41,7 @@ const withPWA = withPWAInit({
             maxEntries: 200,
             maxAgeSeconds: 24 * 60 * 60, // 1 hari
           },
-          networkTimeoutSeconds: 10,
+          networkTimeoutSeconds: 5,
         },
       },
     ],
