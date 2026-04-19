@@ -6,9 +6,13 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: false,
+  // Dev: SW dimatikan agar tidak bentrok dengan Next.js HMR
+  // Untuk test PWA di localhost → jalankan: pnpm build && pnpm start
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
+    // Jangan cache request API/GraphQL
+    exclude: [/\/api\//, /\/_next\/webpack-hmr/],
     runtimeCaching: [
       // Cache halaman navigasi (offline shell)
       {

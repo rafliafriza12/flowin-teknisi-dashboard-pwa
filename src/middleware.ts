@@ -33,8 +33,25 @@ const PUBLIC_PATHS = [
   "/access-denied",
 ];
 
+// File statis PWA yang TIDAK boleh di-intercept middleware
+const PWA_STATIC = [
+  "/manifest.json",
+  "/sw.js",
+  "/swe-worker",
+  "/workbox-",
+  "/icon-",
+  "/favicon",
+  "/_next/",
+  "/img/",
+];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Bypass middleware untuk aset statis PWA
+  if (PWA_STATIC.some((prefix) => pathname.startsWith(prefix))) {
+    return NextResponse.next();
+  }
 
   const accessToken = request.cookies.get("access_token")?.value;
   const refreshToken = request.cookies.get("refresh_token")?.value;
