@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  createContext,
+  useContext,
+} from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
@@ -16,6 +23,12 @@ import {
 } from "@/libs/cloudinary";
 import CircularProgress from "@/components/atoms/CircularProgress";
 import { showToast, showErrorToast } from "@/libs/toast";
+import {
+  addPendingItem,
+  type PendingImageRef,
+  type PendingItemType,
+} from "@/libs/offlineQueue";
+import { useOfflineSyncContext } from "@/providers/OfflineSyncProvider";
 
 // Leaflet hanya jalan di browser — load dinamis
 const KoordinatPicker = dynamic(
@@ -64,6 +77,31 @@ interface PemasanganData {
 interface PengawasanData {
   urlGambar: string[];
   catatan: string;
+}
+
+// ─── Pending Files Context (offline upload queue per-form) ───────────────────
+
+interface PendingFileEntry {
+  file: File;
+  previewUrl: string;
+  cloudinaryFolder: string;
+  tags: string[];
+}
+
+interface PendingFilesContextValue {
+  addPendingFile: (fieldKey: string, entry: PendingFileEntry) => void;
+  removePendingFile: (fieldKey: string) => void;
+  getPendingPreviewUrl: (fieldKey: string) => string | null;
+}
+
+const PendingFilesContext = createContext<PendingFilesContextValue | null>(
+  null,
+);
+
+function usePendingFiles() {
+  const ctx = useContext(PendingFilesContext);
+  if (!ctx) throw new Error("usePendingFiles harus dalam PengerjaanSection");
+  return ctx;
 }
 
 // ─── Shared Upload Hook ───────────────────────────────────────────────────────
@@ -226,6 +264,35 @@ const inputClass =
 const textareaClass =
   "w-full rounded-lg border border-grey-stroke px-3 py-2 text-sm text-neutral-03 placeholder:text-grey focus:outline-none focus:ring-2 focus:ring-moss-stone/30 focus:border-moss-stone resize-none";
 
+// ─── Offline-aware upload helper ──────────────────────────────────────────────
+
+/**
+ * Tangani upload gambar dengan deteksi offline.
+ * Jika offline: simpan file sebagai pending, kembalikan blob URL untuk preview.
+ * Jika online: upload ke Cloudinary, kembalikan URL.
+ */
+async function handleFileOfflineAware(
+  file: File,
+  fieldKey: string,
+  folder: string,
+  tags: string[],
+  uploadFn: (file: File, tags: string[]) => Promise<string | null>,
+  pendingFilesCtx: PendingFilesContextValue,
+): Promise<string | null> {
+  if (!navigator.onLine) {
+    const previewUrl = URL.createObjectURL(file);
+    pendingFilesCtx.addPendingFile(fieldKey, {
+      file,
+      previewUrl,
+      cloudinaryFolder: folder,
+      tags,
+    });
+    showToast.info("📴 Offline: foto disimpan, akan diupload saat online");
+    return previewUrl;
+  }
+  return uploadFn(file, tags);
+}
+
 // ─── Form Survei ──────────────────────────────────────────────────────────────
 // Fields: koordinat, urlJaringan, diameterPipa, urlPosisiBak,
 //         posisiMeteran, jumlahPenghuni, standar, catatan
@@ -238,6 +305,7 @@ const FormSurvei: React.FC<{
   const set = <K extends keyof SurveiData>(key: K, value: SurveiData[K]) =>
     onChange({ ...data, [key]: value });
 
+  const pendingCtx = usePendingFiles();
   const jaringanUpload = useImageUpload("flowin-teknisi/survei");
   const bakUpload = useImageUpload("flowin-teknisi/survei");
   const meteranUpload = useImageUpload("flowin-teknisi/survei");
@@ -247,22 +315,28 @@ const FormSurvei: React.FC<{
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await jaringanUpload.uploadFile(file, [
-      "work-order",
-      "survei",
-      workOrderId,
-    ]);
+    const url = await handleFileOfflineAware(
+      file,
+      "urlJaringan",
+      "flowin-teknisi/survei",
+      ["work-order", "survei", workOrderId],
+      (f, t) => jaringanUpload.uploadFile(f, t),
+      pendingCtx,
+    );
     if (url) set("urlJaringan", url);
   };
 
   const handleBakChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await bakUpload.uploadFile(file, [
-      "work-order",
-      "survei",
-      workOrderId,
-    ]);
+    const url = await handleFileOfflineAware(
+      file,
+      "urlPosisiBak",
+      "flowin-teknisi/survei",
+      ["work-order", "survei", workOrderId],
+      (f, t) => bakUpload.uploadFile(f, t),
+      pendingCtx,
+    );
     if (url) set("urlPosisiBak", url);
   };
 
@@ -271,11 +345,14 @@ const FormSurvei: React.FC<{
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await meteranUpload.uploadFile(file, [
-      "work-order",
-      "survei",
-      workOrderId,
-    ]);
+    const url = await handleFileOfflineAware(
+      file,
+      "posisiMeteran",
+      "flowin-teknisi/survei",
+      ["work-order", "survei", workOrderId],
+      (f, t) => meteranUpload.uploadFile(f, t),
+      pendingCtx,
+    );
     if (url) set("posisiMeteran", url);
   };
 
@@ -424,6 +501,7 @@ const FormRab: React.FC<{
   const set = <K extends keyof RabData>(key: K, value: RabData[K]) =>
     onChange({ ...data, [key]: value });
 
+  const pendingCtx = usePendingFiles();
   const {
     uploading,
     uploadProgress,
@@ -436,7 +514,14 @@ const FormRab: React.FC<{
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await uploadFile(file, ["work-order", "rab", workOrderId]);
+    const url = await handleFileOfflineAware(
+      file,
+      "urlRab",
+      "flowin-teknisi/rab",
+      ["work-order", "rab", workOrderId],
+      (f, t) => uploadFile(f, t),
+      pendingCtx,
+    );
     if (url) set("urlRab", url);
   };
 
@@ -499,6 +584,7 @@ const FormPemasangan: React.FC<{
     value: PemasanganData[K],
   ) => onChange({ ...data, [key]: value });
 
+  const pendingCtx = usePendingFiles();
   const rumahUpload = useImageUpload("flowin-teknisi/pemasangan");
   const meteranUpload = useImageUpload("flowin-teknisi/pemasangan");
   const meteranRumahUpload = useImageUpload("flowin-teknisi/pemasangan");
@@ -511,11 +597,14 @@ const FormPemasangan: React.FC<{
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const url = await uploader.uploadFile(file, [
-        "work-order",
-        "pemasangan",
-        workOrderId,
-      ]);
+      const url = await handleFileOfflineAware(
+        file,
+        field,
+        "flowin-teknisi/pemasangan",
+        ["work-order", "pemasangan", workOrderId],
+        (f, t) => uploader.uploadFile(f, t),
+        pendingCtx,
+      );
       if (url) set(field, url);
     };
 
@@ -604,6 +693,7 @@ const FormPengawasan: React.FC<{
   workOrderId: string;
   jenisPekerjaan: JenisPekerjaan;
 }> = ({ data, onChange, workOrderId, jenisPekerjaan }) => {
+  const pendingCtx = usePendingFiles();
   const {
     uploading,
     uploadProgress,
@@ -616,19 +706,31 @@ const FormPengawasan: React.FC<{
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await uploadFile(file, [
-      "work-order",
-      jenisPekerjaan,
-      workOrderId,
-    ]);
+    const nextIndex = data.urlGambar.length;
+    const fieldKey = `urlGambar_${nextIndex}`;
+    const url = await handleFileOfflineAware(
+      file,
+      fieldKey,
+      `flowin-teknisi/${jenisPekerjaan}`,
+      ["work-order", jenisPekerjaan, workOrderId],
+      (f, t) => uploadFile(f, t),
+      pendingCtx,
+    );
     if (url) onChange({ ...data, urlGambar: [...data.urlGambar, url] });
   };
 
-  const removeGambar = (index: number) =>
+  const removeGambar = (index: number) => {
+    const url = data.urlGambar[index];
+    // Jika ini blob URL (offline pending), revoke dan hapus dari pending context
+    if (url?.startsWith("blob:")) {
+      pendingCtx.removePendingFile(`urlGambar_${index}`);
+      URL.revokeObjectURL(url);
+    }
     onChange({
       ...data,
       urlGambar: data.urlGambar.filter((_, i) => i !== index),
     });
+  };
 
   return (
     <div className="space-y-3">
@@ -983,6 +1085,35 @@ function buildPayload(
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
+  // ─── Offline pending files ─────────────────────────────────────────────────
+  const { isOnline, refreshCount } = useOfflineSyncContext();
+  const [pendingFilesMap, setPendingFilesMap] = useState<
+    Map<string, PendingFileEntry>
+  >(new Map());
+
+  const pendingFilesCtxValue: PendingFilesContextValue = {
+    addPendingFile: useCallback((fieldKey: string, entry: PendingFileEntry) => {
+      setPendingFilesMap((prev) => new Map(prev).set(fieldKey, entry));
+    }, []),
+    removePendingFile: useCallback((fieldKey: string) => {
+      setPendingFilesMap((prev) => {
+        const next = new Map(prev);
+        const entry = next.get(fieldKey);
+        if (entry?.previewUrl?.startsWith("blob:"))
+          URL.revokeObjectURL(entry.previewUrl);
+        next.delete(fieldKey);
+        return next;
+      });
+    }, []),
+    getPendingPreviewUrl: useCallback(
+      (fieldKey: string) => {
+        return pendingFilesMap.get(fieldKey)?.previewUrl ?? null;
+      },
+      [pendingFilesMap],
+    ),
+  };
+
+  // ─── Form state ────────────────────────────────────────────────────────────
   const [surveiData, setSurveiData] = useState<SurveiData>({
     koordinat: { longitude: "", latitude: "" },
     urlJaringan: "",
@@ -1127,7 +1258,58 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
       pengawasanData,
     );
 
+  // ─── Helper: queue ke offline IndexedDB ─────────────────────────────────────
+  const queueOffline = async (type: PendingItemType) => {
+    const payload = getPayload();
+
+    // Untuk field yang masih blob URL (offline pending), ganti ke null
+    // supaya payload bisa di-serialize dan nanti diisi URL real saat sync
+    const cleanPayload = JSON.parse(
+      JSON.stringify(payload, (_, v) =>
+        typeof v === "string" && v.startsWith("blob:") ? null : v,
+      ),
+    ) as Record<string, unknown>;
+
+    // Kumpulkan semua pending image refs
+    const pendingImages: PendingImageRef[] = Array.from(
+      pendingFilesMap.entries(),
+    ).map(([fieldKey, entry]) => ({
+      fieldKey,
+      file: entry.file,
+      cloudinaryFolder: entry.cloudinaryFolder,
+      tags: entry.tags,
+    }));
+
+    await addPendingItem({
+      workOrderId: workOrder.id,
+      jenisPekerjaan: workOrder.jenisPekerjaan,
+      progresPayload: cleanPayload,
+      pendingImages,
+      type,
+    });
+
+    // Reset pending files
+    pendingFilesMap.forEach((entry) => {
+      if (entry.previewUrl?.startsWith("blob:"))
+        URL.revokeObjectURL(entry.previewUrl);
+    });
+    setPendingFilesMap(new Map());
+    await refreshCount();
+  };
+
   const handleSimpanProgres = async () => {
+    // Offline atau ada pending files? → queue ke IndexedDB
+    if (!isOnline || pendingFilesMap.size > 0) {
+      try {
+        await queueOffline("simpan_progres");
+        showToast.info(
+          "📴 Data disimpan offline. Akan diupload saat ada koneksi.",
+        );
+      } catch (err) {
+        showErrorToast(err);
+      }
+      return;
+    }
     try {
       const result = await simpanProgresMutation.mutateAsync({
         input: {
@@ -1152,6 +1334,18 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
       showToast.warning("Upload minimal satu foto bukti pekerjaan");
       return;
     }
+    // Offline atau ada pending files? → queue dengan type kirim_hasil
+    if (!isOnline || pendingFilesMap.size > 0) {
+      try {
+        await queueOffline("kirim_hasil");
+        showToast.info(
+          "📴 Data & pengiriman hasil disimpan offline. Akan diproses saat ada koneksi.",
+        );
+      } catch (err) {
+        showErrorToast(err);
+      }
+      return;
+    }
     try {
       await simpanProgresMutation.mutateAsync({
         input: {
@@ -1169,84 +1363,105 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-grey-stroke p-4">
-      <h3 className="text-sm font-semibold text-neutral-03 mb-3">Pengerjaan</h3>
+    <PendingFilesContext.Provider value={pendingFilesCtxValue}>
+      <div className="bg-white rounded-xl border border-grey-stroke p-4">
+        <h3 className="text-sm font-semibold text-neutral-03 mb-3">
+          Pengerjaan
+        </h3>
 
-      {canWork && (
-        <>
-          {/* Revisi info */}
-          {workOrder.status === "revisi" && workOrder.catatanReview && (
-            <div className="mb-4 p-3 rounded-lg bg-orange-50 border border-orange-200">
-              <p className="text-xs font-medium text-orange-800">
-                Catatan Revisi dari Admin:
-              </p>
-              <p className="text-xs text-orange-700 mt-1">
-                {workOrder.catatanReview}
-              </p>
-            </div>
-          )}
-
-          {/* Form dinamis sesuai jenis pekerjaan */}
-          <div className="mb-4">
-            {workOrder.jenisPekerjaan === "survei" && (
-              <FormSurvei
-                data={surveiData}
-                onChange={setSurveiData}
-                workOrderId={workOrder.id}
-              />
-            )}
-            {workOrder.jenisPekerjaan === "rab" && (
-              <FormRab
-                data={rabData}
-                onChange={setRabData}
-                workOrderId={workOrder.id}
-              />
-            )}
-            {workOrder.jenisPekerjaan === "pemasangan" && (
-              <FormPemasangan
-                data={pemasanganData}
-                onChange={setPemasanganData}
-                workOrderId={workOrder.id}
-              />
-            )}
-            {(workOrder.jenisPekerjaan === "pengawasan_pemasangan" ||
-              workOrder.jenisPekerjaan === "pengawasan_setelah_pemasangan" ||
-              workOrder.jenisPekerjaan === "penyelesaian_laporan") && (
-              <FormPengawasan
-                data={pengawasanData}
-                onChange={setPengawasanData}
-                workOrderId={workOrder.id}
-                jenisPekerjaan={workOrder.jenisPekerjaan}
-              />
-            )}
+        {/* Offline pending banner */}
+        {pendingFilesMap.size > 0 && (
+          <div className="mb-3 flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+            <span className="text-amber-600 text-sm">📴</span>
+            <p className="text-xs text-amber-800 font-medium">
+              {pendingFilesMap.size} foto tersimpan offline — klik &quot;Simpan
+              Draft&quot; untuk mengantri upload
+            </p>
           </div>
+        )}
 
-          {/* Action buttons */}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={handleSimpanProgres}
-              disabled={isLoading}
-              className="flex-1 px-4 py-2.5 rounded-lg border border-moss-stone text-moss-stone text-sm font-medium hover:bg-moss-stone/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {simpanProgresMutation.isPending
-                ? "Menyimpan..."
-                : "Simpan Draft"}
-            </button>
-            {canSubmit && (
+        {canWork && (
+          <>
+            {/* Revisi info */}
+            {workOrder.status === "revisi" && workOrder.catatanReview && (
+              <div className="mb-4 p-3 rounded-lg bg-orange-50 border border-orange-200">
+                <p className="text-xs font-medium text-orange-800">
+                  Catatan Revisi dari Admin:
+                </p>
+                <p className="text-xs text-orange-700 mt-1">
+                  {workOrder.catatanReview}
+                </p>
+              </div>
+            )}
+
+            {/* Form dinamis sesuai jenis pekerjaan */}
+            <div className="mb-4">
+              {workOrder.jenisPekerjaan === "survei" && (
+                <FormSurvei
+                  data={surveiData}
+                  onChange={setSurveiData}
+                  workOrderId={workOrder.id}
+                />
+              )}
+              {workOrder.jenisPekerjaan === "rab" && (
+                <FormRab
+                  data={rabData}
+                  onChange={setRabData}
+                  workOrderId={workOrder.id}
+                />
+              )}
+              {workOrder.jenisPekerjaan === "pemasangan" && (
+                <FormPemasangan
+                  data={pemasanganData}
+                  onChange={setPemasanganData}
+                  workOrderId={workOrder.id}
+                />
+              )}
+              {(workOrder.jenisPekerjaan === "pengawasan_pemasangan" ||
+                workOrder.jenisPekerjaan === "pengawasan_setelah_pemasangan" ||
+                workOrder.jenisPekerjaan === "penyelesaian_laporan") && (
+                <FormPengawasan
+                  data={pengawasanData}
+                  onChange={setPengawasanData}
+                  workOrderId={workOrder.id}
+                  jenisPekerjaan={workOrder.jenisPekerjaan}
+                />
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-3">
               <button
                 type="button"
-                onClick={handleKirimHasil}
+                onClick={handleSimpanProgres}
                 disabled={isLoading}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-moss-stone text-white text-sm font-medium hover:bg-moss-stone/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-moss-stone text-moss-stone text-sm font-medium hover:bg-moss-stone/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {kirimHasilMutation.isPending ? "Mengirim..." : "Kirim Hasil"}
+                {simpanProgresMutation.isPending
+                  ? "Menyimpan..."
+                  : !isOnline
+                    ? "Simpan Offline"
+                    : "Simpan Draft"}
               </button>
-            )}
-          </div>
-        </>
-      )}
-    </div>
+              {canSubmit && (
+                <button
+                  type="button"
+                  onClick={handleKirimHasil}
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-moss-stone text-white text-sm font-medium hover:bg-moss-stone/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {kirimHasilMutation.isPending
+                    ? "Mengirim..."
+                    : !isOnline
+                      ? "Antri Kirim (Offline)"
+                      : "Kirim Hasil"}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </PendingFilesContext.Provider>
   );
 };
 

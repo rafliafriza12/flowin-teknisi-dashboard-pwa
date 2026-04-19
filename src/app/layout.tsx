@@ -1,15 +1,29 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { SidebarProvider } from "@/providers/SidebarProvider";
+import { OfflineSyncProvider } from "@/providers/OfflineSyncProvider";
 import NextTopLoader from "nextjs-toploader";
-import MainLayout from "@/components/templates/layouts/MainLayout";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export const metadata: Metadata = {
   title: "Flowin - Website Teknisi",
-  description: "Management pekerjaan teknisi",
+  description: "Management pekerjaan teknisi PDAM",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Flowin Teknisi",
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1f2375",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -19,6 +33,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="apple-touch-icon" href="/img/logo.png" />
+      </head>
       <body
         className={`font-parkinsans antialiased bg-grey-lightest overflow-x-hidden overflow-y-auto thin-scrollbar`}
         suppressHydrationWarning
@@ -35,7 +52,9 @@ export default function RootLayout({
           zIndex={99999}
         />
         <QueryProvider>
-          <SidebarProvider>{children}</SidebarProvider>
+          <SidebarProvider>
+            <OfflineSyncProvider>{children}</OfflineSyncProvider>
+          </SidebarProvider>
         </QueryProvider>
         <ToastContainer
           position="top-right"
