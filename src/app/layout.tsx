@@ -4,8 +4,7 @@ import { QueryProvider } from "@/providers/QueryProvider";
 import { SidebarProvider } from "@/providers/SidebarProvider";
 import { OfflineSyncProvider } from "@/providers/OfflineSyncProvider";
 import NextTopLoader from "nextjs-toploader";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Flowin - Website Teknisi",
@@ -56,18 +55,7 @@ export default function RootLayout({
             <OfflineSyncProvider>{children}</OfflineSyncProvider>
           </SidebarProvider>
         </QueryProvider>
-        <ToastContainer
-          position="top-right"
-          autoClose={4000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
+        <Toaster position="top-right" duration={4000} richColors closeButton />
       </body>
     </html>
   );

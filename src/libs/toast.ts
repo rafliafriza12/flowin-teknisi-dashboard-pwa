@@ -1,29 +1,24 @@
-import { toast, ToastOptions } from "react-toastify";
+import { toast, ExternalToast } from "sonner";
 import { GraphQLRequestError } from "./graphql";
 
-const defaultOptions: ToastOptions = {
-  position: "top-right",
-  autoClose: 4000,
-  hideProgressBar: false,
-  closeOnClick: true,
-  pauseOnHover: true,
-  draggable: true,
+const defaultOptions: ExternalToast = {
+  duration: 4000,
 };
 
 export const showToast = {
-  success: (message: string, options?: ToastOptions) => {
+  success: (message: string, options?: ExternalToast) => {
     toast.success(message, { ...defaultOptions, ...options });
   },
 
-  error: (message: string, options?: ToastOptions) => {
+  error: (message: string, options?: ExternalToast) => {
     toast.error(message, { ...defaultOptions, ...options });
   },
 
-  warning: (message: string, options?: ToastOptions) => {
+  warning: (message: string, options?: ExternalToast) => {
     toast.warning(message, { ...defaultOptions, ...options });
   },
 
-  info: (message: string, options?: ToastOptions) => {
+  info: (message: string, options?: ExternalToast) => {
     toast.info(message, { ...defaultOptions, ...options });
   },
 };
@@ -66,7 +61,7 @@ export const getErrorMessage = (error: unknown): string => {
  * Show toast error from any error type
  * Will NOT show toast for authentication errors (handled by auto-refresh)
  */
-export const showErrorToast = (error: unknown, options?: ToastOptions) => {
+export const showErrorToast = (error: unknown, options?: ExternalToast) => {
   // Skip toast for auth errors - these are handled by auto-refresh logic
   if (isAuthError(error)) {
     return;
