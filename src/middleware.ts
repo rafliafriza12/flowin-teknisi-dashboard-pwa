@@ -69,7 +69,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Hanya redirect ke dashboard jika access_token VALID
+    // access_token valid → langsung ke dashboard
     if (accessToken) {
       const payload = await verifyToken(accessToken);
       if (payload) {
@@ -77,7 +77,16 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Token expired / tidak ada → biarkan tampil halaman login
+    // access_token expired/tidak ada, TAPI refresh_token masih ada →
+    // redirect ke dashboard; PrivateLayout & client-side graphqlAction
+    // akan otomatis me-refresh token tanpa user perlu input ulang.
+    // Tanpa ini, user selalu lihat halaman login saat buka PWA setelah
+    // 15 menit (lifetime access_token), padahal sesi masih valid 7 hari.
+    if (refreshToken) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // Tidak punya token sama sekali → biarkan tampil halaman login
     return NextResponse.next();
   }
 
