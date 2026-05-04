@@ -3,8 +3,12 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
+  // cacheOnFrontEndNav: true dipertahankan agar halaman yang dikunjungi ter-cache
   cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
+  // aggressiveFrontEndNavCaching DIMATIKAN — jika aktif, SW ikut meng-cache
+  // response redirect (/login) sebagai HTML navigasi, lalu menyajikannya saat
+  // offline sehingga app selalu landing di login meski sudah punya refresh_token.
+  aggressiveFrontEndNavCaching: false,
   reloadOnOnline: false,
   // Dev: SW dimatikan agar tidak bentrok dengan Next.js HMR
   // Untuk test PWA di localhost → jalankan: pnpm build && pnpm start
@@ -18,10 +22,21 @@ const withPWA = withPWAInit({
     // Jangan cache request API/GraphQL & HMR
     exclude: [/\/api\//, /\/_next\/webpack-hmr/],
     runtimeCaching: [
-      // Cache RSC payload (navigasi App Router Next.js)
+      // ── Next.js App Router RSC requests ──────────────────────────────────
+      // App Router menggunakan URL yang SAMA dengan halaman tapi menambah
+      // query param `_rsc=<id>` dan header "RSC: 1".
+      // Jika di-cache bersama HTML-nya (URL sama), Workbox akan mengembalikan
+      // HTML saat App Router berharap mendapat RSC JSON → navigasi antar
+      // halaman pecah / blank.  Solusi: NetworkOnly, biarkan App Router
+      // menangani state-nya sendiri (dia punya cache internal sendiri).
+      {
+        urlPattern: ({ url }: { url: URL }) => url.searchParams.has("_rsc"),
+        handler: "NetworkOnly" as const,
+      },
+      // ── _next/data (Pages Router RSC – jaga kompatibilitas) ───────────────
       {
         urlPattern: /\/_next\/data\/.*/,
-        handler: "NetworkFirst",
+        handler: "NetworkFirst" as const,
         options: {
           cacheName: "flowin-rsc-cache",
           expiration: {
@@ -31,10 +46,14 @@ const withPWA = withPWAInit({
           networkTimeoutSeconds: 5,
         },
       },
-      // Cache halaman navigasi HTML
+      // ── Halaman navigasi HTML (bukan RSC) ─────────────────────────────────
+      // Hanya cache full-page navigation (Accept: text/html), bukan fetch API
+      // atau RSC.  NetworkFirst: coba jaringan dulu, fallback ke cache jika
+      // offline (setelah 5 detik timeout).
       {
-        urlPattern: /^https?.*/,
-        handler: "NetworkFirst",
+        urlPattern: ({ request }: { request: Request }) =>
+          request.mode === "navigate",
+        handler: "NetworkFirst" as const,
         options: {
           cacheName: "flowin-teknisi-cache",
           expiration: {

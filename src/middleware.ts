@@ -40,10 +40,12 @@ const PWA_STATIC = [
   "/sw.js",
   "/swe-worker",
   "/workbox-",
+  "/fallback-", // fallback JS yang di-generate oleh @ducanh2912/next-pwa
   "/icon-",
   "/favicon",
   "/_next/",
   "/img/",
+  "/pdf.worker.min.mjs", // pdfjs-dist worker (dipakai di halaman pengerjaan)
 ];
 
 export async function middleware(request: NextRequest) {
@@ -123,6 +125,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|img/|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // Jalankan middleware hanya untuk route halaman — skip semua aset statis.
+    // Ekstensi yang di-skip: gambar, JS/MJS, CSS, font, JSON, PDF, map.
+    "/((?!_next/static|_next/image|favicon\\.ico|img/|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|mjs|css|woff2?|ttf|otf|json|pdf|map)$).*)",
   ],
 };
