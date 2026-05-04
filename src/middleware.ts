@@ -40,12 +40,10 @@ const PWA_STATIC = [
   "/sw.js",
   "/swe-worker",
   "/workbox-",
-  "/fallback-", // fallback JS yang di-generate oleh @ducanh2912/next-pwa
   "/icon-",
   "/favicon",
   "/_next/",
   "/img/",
-  "/pdf.worker.min.mjs", // pdfjs-dist worker (dipakai di halaman pengerjaan)
 ];
 
 export async function middleware(request: NextRequest) {
@@ -69,7 +67,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // access_token valid → langsung ke dashboard
+    // Hanya redirect ke dashboard jika access_token VALID
     if (accessToken) {
       const payload = await verifyToken(accessToken);
       if (payload) {
@@ -77,16 +75,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // access_token expired/tidak ada, TAPI refresh_token masih ada →
-    // redirect ke dashboard; PrivateLayout & client-side graphqlAction
-    // akan otomatis me-refresh token tanpa user perlu input ulang.
-    // Tanpa ini, user selalu lihat halaman login saat buka PWA setelah
-    // 15 menit (lifetime access_token), padahal sesi masih valid 7 hari.
-    if (refreshToken) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-
-    // Tidak punya token sama sekali → biarkan tampil halaman login
+    // Token expired / tidak ada → biarkan tampil halaman login
     return NextResponse.next();
   }
 
@@ -134,8 +123,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Jalankan middleware hanya untuk route halaman — skip semua aset statis.
-    // Ekstensi yang di-skip: gambar, JS/MJS, CSS, font, JSON, PDF, map.
-    "/((?!_next/static|_next/image|favicon\\.ico|img/|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|mjs|css|woff2?|ttf|otf|json|pdf|map)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|img/|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

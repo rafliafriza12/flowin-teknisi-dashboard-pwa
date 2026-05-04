@@ -3,15 +3,8 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  // cacheOnFrontEndNav DIMATIKAN — jika aktif, plugin meng-inject handler
-  // StaleWhileRevalidate tersendiri ke SW yang men-serve cached HTML dulu
-  // (termasuk login page yang tersimpan sebelumnya) baru fetch ke network
-  // di background.  Artinya setiap buka app, user selalu lihat halaman lama
-  // dan baru melihat halaman baru setelah refresh.
-  // Workbox runtime cache di bawah (mode: navigate + NetworkFirst) sudah
-  // menangani offline navigation dengan benar — tidak perlu ini.
-  cacheOnFrontEndNav: false,
-  aggressiveFrontEndNavCaching: false,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
   reloadOnOnline: false,
   // Dev: SW dimatikan agar tidak bentrok dengan Next.js HMR
   // Untuk test PWA di localhost → jalankan: pnpm build && pnpm start
@@ -25,21 +18,10 @@ const withPWA = withPWAInit({
     // Jangan cache request API/GraphQL & HMR
     exclude: [/\/api\//, /\/_next\/webpack-hmr/],
     runtimeCaching: [
-      // ── Next.js App Router RSC requests ──────────────────────────────────
-      // App Router menggunakan URL yang SAMA dengan halaman tapi menambah
-      // query param `_rsc=<id>` dan header "RSC: 1".
-      // Jika di-cache bersama HTML-nya (URL sama), Workbox akan mengembalikan
-      // HTML saat App Router berharap mendapat RSC JSON → navigasi antar
-      // halaman pecah / blank.  Solusi: NetworkOnly, biarkan App Router
-      // menangani state-nya sendiri (dia punya cache internal sendiri).
-      {
-        urlPattern: ({ url }: { url: URL }) => url.searchParams.has("_rsc"),
-        handler: "NetworkOnly" as const,
-      },
-      // ── _next/data (Pages Router RSC – jaga kompatibilitas) ───────────────
+      // Cache RSC payload (navigasi App Router Next.js)
       {
         urlPattern: /\/_next\/data\/.*/,
-        handler: "NetworkFirst" as const,
+        handler: "NetworkFirst",
         options: {
           cacheName: "flowin-rsc-cache",
           expiration: {
@@ -49,14 +31,10 @@ const withPWA = withPWAInit({
           networkTimeoutSeconds: 5,
         },
       },
-      // ── Halaman navigasi HTML (bukan RSC) ─────────────────────────────────
-      // Hanya cache full-page navigation (Accept: text/html), bukan fetch API
-      // atau RSC.  NetworkFirst: coba jaringan dulu, fallback ke cache jika
-      // offline (setelah 5 detik timeout).
+      // Cache halaman navigasi HTML
       {
-        urlPattern: ({ request }: { request: Request }) =>
-          request.mode === "navigate",
-        handler: "NetworkFirst" as const,
+        urlPattern: /^https?.*/,
+        handler: "NetworkFirst",
         options: {
           cacheName: "flowin-teknisi-cache",
           expiration: {
