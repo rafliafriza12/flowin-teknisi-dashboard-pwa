@@ -347,6 +347,50 @@ async function convertPdfToImage(file: File): Promise<File> {
   });
 }
 
+// Konversi semua halaman PDF ke array File JPEG (satu File per halaman)
+async function convertPdfToImages(file: File): Promise<File[]> {
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) })
+    .promise;
+  console.log("[convertPdfToImages] numPages =", pdf.numPages);
+  const baseName = file.name.replace(/\.pdf$/i, "");
+  const result: File[] = [];
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx2d = canvas.getContext("2d");
+    if (!ctx2d) throw new Error("Tidak dapat membuat canvas context");
+    await page.render({ canvasContext: ctx2d, viewport }).promise;
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (b) => {
+          if (!b) {
+            reject(new Error(`Gagal mengkonversi halaman ${pageNum}`));
+            return;
+          }
+          resolve(b);
+        },
+        "image/jpeg",
+        0.92,
+      );
+    });
+    const fileName =
+      pdf.numPages === 1 ? `${baseName}.jpg` : `${baseName}_p${pageNum}.jpg`;
+    const imgFile = new File([blob], fileName, { type: "image/jpeg" });
+    console.log(
+      `[convertPdfToImages] page ${pageNum}: ${imgFile.name}, size=${imgFile.size}`,
+    );
+    result.push(imgFile);
+  }
+  console.log("[convertPdfToImages] total files:", result.length);
+  return result;
+}
+
 /**
  * Tangani upload gambar dengan deteksi offline.
  * Jika file adalah PDF, konversi ke gambar terlebih dahulu.
@@ -850,9 +894,63 @@ const FormPengawasan: React.FC<{
     uploadFile,
   } = useImageUpload(`flowin-teknisi/${jenisPekerjaan}`);
 
+  const [processing, setProcessing] = useState(false);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
+
+    // PDF: konversi semua halaman, upload satu per satu
+    if (file.type === "application/pdf") {
+      if (!navigator.onLine) {
+        showToast.warning(
+          "Konversi PDF tidak tersedia saat offline. Gunakan foto langsung.",
+        );
+        return;
+      }
+      setProcessing(true);
+      try {
+        const imageFiles = await convertPdfToImages(file);
+        console.log(
+          "[handleFileChange] imageFiles.length =",
+          imageFiles.length,
+        );
+        const baseIdx = data.urlGambar.length;
+        const newUrls: string[] = [];
+        for (let i = 0; i < imageFiles.length; i++) {
+          console.log(
+            "[handleFileChange] uploading page",
+            i + 1,
+            "of",
+            imageFiles.length,
+          );
+          const url = await handleFileOfflineAware(
+            imageFiles[i],
+            `urlGambar_${baseIdx + i}`,
+            `flowin-teknisi/${jenisPekerjaan}`,
+            ["work-order", jenisPekerjaan, workOrderId],
+            (f, t) => uploadFile(f, t),
+            pendingCtx,
+          );
+          console.log("[handleFileChange] page", i + 1, "url =", url);
+          if (url) newUrls.push(url);
+        }
+        console.log("[handleFileChange] final newUrls =", newUrls);
+        if (newUrls.length > 0)
+          onChange({ ...data, urlGambar: [...data.urlGambar, ...newUrls] });
+      } catch (err) {
+        console.error("[PDF Conversion Error]", err);
+        showErrorToast(
+          err instanceof Error ? err : new Error("Gagal mengkonversi PDF"),
+        );
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
+    // Gambar biasa
     const nextIndex = data.urlGambar.length;
     const fieldKey = `urlGambar_${nextIndex}`;
     const url = await handleFileOfflineAware(
@@ -917,7 +1015,12 @@ const FormPengawasan: React.FC<{
           ))}
         </div>
       )}
-      {uploading ? (
+      {processing ? (
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
+          <div className="w-5 h-5 border-2 border-moss-stone border-t-transparent rounded-full animate-spin shrink-0" />
+          <p className="text-xs text-neutral-03 flex-1">Mengkonversi PDF...</p>
+        </div>
+      ) : uploading ? (
         <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
           <CircularProgress
             progress={uploadProgress}
@@ -993,12 +1096,72 @@ const FormMaintenance: React.FC<{
     value: MaintenanceData[K],
   ) => onChange({ ...data, [key]: value });
 
+  const [processing, setProcessing] = useState(false);
+
+  // ─── Helper: upload multi-page PDF untuk satu array foto ─────────────────
+  const uploadPdfPages = async (
+    file: File,
+    currentUrls: string[],
+    fieldKeyPrefix: string,
+    folder: string,
+    tags: string[],
+    uploadFn: (f: File, t: string[]) => Promise<string | null>,
+  ): Promise<string[]> => {
+    const imageFiles = await convertPdfToImages(file);
+    const baseIdx = currentUrls.length;
+    const newUrls: string[] = [];
+    for (let i = 0; i < imageFiles.length; i++) {
+      const url = await handleFileOfflineAware(
+        imageFiles[i],
+        `${fieldKeyPrefix}_${baseIdx + i}`,
+        folder,
+        tags,
+        uploadFn,
+        pendingCtx,
+      );
+      if (url) newUrls.push(url);
+    }
+    return newUrls;
+  };
+
   // ─── Handler foto sebelum ────────────────────────────────────────────────
   const handleFotoSebelumChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
+
+    if (file.type === "application/pdf") {
+      if (!navigator.onLine) {
+        showToast.warning(
+          "Konversi PDF tidak tersedia saat offline. Gunakan foto langsung.",
+        );
+        return;
+      }
+      setProcessing(true);
+      try {
+        const newUrls = await uploadPdfPages(
+          file,
+          data.fotoSebelum,
+          "fotoSebelum",
+          "flowin-teknisi/maintenance",
+          ["work-order", "maintenance", workOrderId, "sebelum"],
+          (f, t) => sebelumUpload.uploadFile(f, t),
+        );
+        if (newUrls.length > 0)
+          set("fotoSebelum", [...data.fotoSebelum, ...newUrls]);
+      } catch (err) {
+        console.error("[PDF Conversion Error]", err);
+        showErrorToast(
+          err instanceof Error ? err : new Error("Gagal mengkonversi PDF"),
+        );
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
     const nextIdx = data.fotoSebelum.length;
     const url = await handleFileOfflineAware(
       file,
@@ -1029,6 +1192,38 @@ const FormMaintenance: React.FC<{
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
+
+    if (file.type === "application/pdf") {
+      if (!navigator.onLine) {
+        showToast.warning(
+          "Konversi PDF tidak tersedia saat offline. Gunakan foto langsung.",
+        );
+        return;
+      }
+      setProcessing(true);
+      try {
+        const newUrls = await uploadPdfPages(
+          file,
+          data.fotoSetelah,
+          "fotoSetelah",
+          "flowin-teknisi/maintenance",
+          ["work-order", "maintenance", workOrderId, "setelah"],
+          (f, t) => setelahUpload.uploadFile(f, t),
+        );
+        if (newUrls.length > 0)
+          set("fotoSetelah", [...data.fotoSetelah, ...newUrls]);
+      } catch (err) {
+        console.error("[PDF Conversion Error]", err);
+        showErrorToast(
+          err instanceof Error ? err : new Error("Gagal mengkonversi PDF"),
+        );
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
     const nextIdx = data.fotoSetelah.length;
     const url = await handleFileOfflineAware(
       file,
@@ -1169,7 +1364,14 @@ const FormMaintenance: React.FC<{
               ))}
             </div>
           )}
-          {sebelumUpload.uploading ? (
+          {processing ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
+              <div className="w-5 h-5 border-2 border-moss-stone border-t-transparent rounded-full animate-spin shrink-0" />
+              <p className="text-xs text-neutral-03 flex-1">
+                Mengkonversi PDF...
+              </p>
+            </div>
+          ) : sebelumUpload.uploading ? (
             <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
               <CircularProgress
                 progress={sebelumUpload.uploadProgress}
@@ -1310,7 +1512,14 @@ const FormMaintenance: React.FC<{
               ))}
             </div>
           )}
-          {setelahUpload.uploading ? (
+          {processing ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
+              <div className="w-5 h-5 border-2 border-moss-stone border-t-transparent rounded-full animate-spin shrink-0" />
+              <p className="text-xs text-neutral-03 flex-1">
+                Mengkonversi PDF...
+              </p>
+            </div>
+          ) : setelahUpload.uploading ? (
             <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
               <CircularProgress
                 progress={setelahUpload.uploadProgress}
