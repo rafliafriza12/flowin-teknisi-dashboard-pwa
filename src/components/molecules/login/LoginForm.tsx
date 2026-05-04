@@ -7,7 +7,6 @@ import EyeIcon from "@/components/atoms/icons/EyeIcon";
 import EyeOffIcon from "@/components/atoms/icons/EyeOffIcon";
 import { useLogin } from "@/services";
 import { showToast, showErrorToast } from "@/libs/toast";
-import { useRouter } from "next/navigation";
 import { cn } from "@/libs/utils";
 
 // Loading Spinner Component
@@ -40,7 +39,6 @@ const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const login = useLogin();
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +49,7 @@ const LoginForm: React.FC = () => {
     try {
       const result = await login.mutateAsync({ input: { email, password } });
       showToast.success(`Welcome back, ${result.login.user.namaLengkap}!`);
-      router.push("/");
+      window.location.href = "/";
     } catch (error) {
       showErrorToast(error);
       setIsLoading(false);
