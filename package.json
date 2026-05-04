@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "preview": "next build --webpack && next start"
+    "preview": "next build --webpack && next start",
+    "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -36,6 +37,7 @@
     "leaflet": "^1.9.4",
     "next": "16.0.10",
     "nextjs-toploader": "^3.9.17",
+    "pdfjs-dist": "^4.10.38",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-leaflet": "^5.0.0",

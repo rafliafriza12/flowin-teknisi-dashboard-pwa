@@ -8,7 +8,8 @@ export type JenisPekerjaan =
   | "pemasangan"
   | "pengawasan_pemasangan"
   | "pengawasan_setelah_pemasangan"
-  | "penyelesaian_laporan";
+  | "penyelesaian_laporan"
+  | "maintenance";
 
 export type StatusPekerjaan =
   | "menunggu_respon"
@@ -142,12 +143,20 @@ export interface IWorkOrder {
   idPengawasanPemasangan?: string | null;
   idPengawasanSetelahPemasangan?: string | null;
   idPenyelesaianLaporan?: string | null;
+  idMaintenance?: string | null;
   idLaporan?: string | null;
+  // Koordinat lokasi pekerjaan (diset admin untuk maintenance)
+  koordinatLokasi?: IKoordinatLokasi | null;
   // Review
   catatanReview?: string | null;
   riwayatReview: IRiwayatReview[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface IKoordinatLokasi {
+  longitude: number;
+  latitude: number;
 }
 
 export interface IWorkflowChainItem {
@@ -185,6 +194,13 @@ export interface IProgresData {
   fotoMeteranDanRumah?: string | null;
   // Pengawasan / Penyelesaian
   urlGambar?: string[] | null;
+  // Maintenance
+  kondisiSebelumDaya?: "menyala" | "mati" | null;
+  kondisiSebelumKoneksi?: "terkoneksi" | "tidak_terkoneksi" | null;
+  fotoSebelum?: string[] | null;
+  kondisiSetelahDaya?: "menyala" | "mati" | null;
+  kondisiSetelahKoneksi?: "terkoneksi" | "tidak_terkoneksi" | null;
+  fotoSetelah?: string[] | null;
   // Shared
   catatan?: string | null;
 }
@@ -256,6 +272,7 @@ export const LABEL_JENIS_PEKERJAAN: Record<JenisPekerjaan, string> = {
   pengawasan_pemasangan: "Pengawasan Pemasangan",
   pengawasan_setelah_pemasangan: "Pengawasan Setelah Pemasangan",
   penyelesaian_laporan: "Penyelesaian Laporan",
+  maintenance: "Maintenance",
 };
 
 export const LABEL_STATUS_PEKERJAAN: Record<StatusPekerjaan, string> = {

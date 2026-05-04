@@ -43,6 +43,22 @@ const KoordinatPicker = dynamic(
   },
 );
 
+// Map rute teknisi (Leaflet, hanya browser)
+const MapRuteTeknisi = dynamic(
+  () => import("@/components/molecules/workOrder/MapRuteTeknisi"),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="w-full rounded-xl bg-gray-100 border border-grey-stroke flex items-center justify-center"
+        style={{ height: "280px" }}
+      >
+        <p className="text-xs text-grey">Memuat peta rute...</p>
+      </div>
+    ),
+  },
+);
+
 interface PengerjaanSectionProps {
   workOrder: IWorkOrder;
 }
@@ -79,6 +95,16 @@ interface PengawasanData {
   catatan: string;
 }
 
+interface MaintenanceData {
+  kondisiSebelumDaya: "menyala" | "mati" | "";
+  kondisiSebelumKoneksi: "terkoneksi" | "tidak_terkoneksi" | "";
+  fotoSebelum: string[];
+  kondisiSetelahDaya: "menyala" | "mati" | "";
+  kondisiSetelahKoneksi: "terkoneksi" | "tidak_terkoneksi" | "";
+  fotoSetelah: string[];
+  catatan: string;
+}
+
 // ─── Pending Files Context (offline upload queue per-form) ───────────────────
 
 interface PendingFileEntry {
@@ -102,6 +128,14 @@ function usePendingFiles() {
   const ctx = useContext(PendingFilesContext);
   if (!ctx) throw new Error("usePendingFiles harus dalam PengerjaanSection");
   return ctx;
+}
+
+// ─── Image Preview Context ─────────────────────────────────────────────────
+
+const PreviewContext = createContext<(url: string) => void>(() => {});
+
+function usePreview() {
+  return useContext(PreviewContext);
 }
 
 // ─── Shared Upload Hook ───────────────────────────────────────────────────────
@@ -196,18 +230,29 @@ const UploadButton: React.FC<UploadButtonProps> = ({
   currentUrl,
   onRemove,
 }) => {
+  const openPreview = usePreview();
   return (
     <div>
       {currentUrl ? (
-        <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden border border-grey-stroke group">
+        <div
+          className="relative w-full aspect-4/3 rounded-lg overflow-hidden border border-grey-stroke group cursor-pointer"
+          onClick={() => openPreview(currentUrl)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && openPreview(currentUrl)}
+          aria-label="Lihat foto"
+        >
           <Image src={currentUrl} alt={label} fill className="object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors pointer-events-none" />
           <button
             type="button"
-            onClick={onRemove}
-            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove?.();
+            }}
+            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
           >
-            ×
+            x
           </button>
         </div>
       ) : uploading ? (
@@ -244,7 +289,7 @@ const UploadButton: React.FC<UploadButtonProps> = ({
           <label className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey cursor-pointer">
             <input
               type="file"
-              accept="image/jpeg,image/png,image/jpg,image/webp"
+              accept="image/jpeg,image/png,image/jpg,image/webp,application/pdf"
               onChange={onFileChange}
               className="sr-only"
             />
@@ -266,19 +311,76 @@ const textareaClass =
 
 // ─── Offline-aware upload helper ──────────────────────────────────────────────
 
+// ─── PDF → Image converter ────────────────────────────────────────────────────
+
+async function convertPdfToImage(file: File): Promise<File> {
+  const pdfjsLib = await import("pdfjs-dist");
+  // pdfjs-dist v4 — worker via CDN agar MIME type & CORS selalu benar
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) })
+    .promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 2.0 });
+  const canvas = document.createElement("canvas");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx2d = canvas.getContext("2d");
+  if (!ctx2d) throw new Error("Tidak dapat membuat canvas context");
+  await page.render({ canvasContext: ctx2d, viewport }).promise;
+  return new Promise<File>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Gagal mengkonversi PDF ke gambar"));
+          return;
+        }
+        resolve(
+          new File([blob], file.name.replace(/\.pdf$/i, ".jpg"), {
+            type: "image/jpeg",
+          }),
+        );
+      },
+      "image/jpeg",
+      0.92,
+    );
+  });
+}
+
 /**
  * Tangani upload gambar dengan deteksi offline.
+ * Jika file adalah PDF, konversi ke gambar terlebih dahulu.
  * Jika offline: simpan file sebagai pending, kembalikan blob URL untuk preview.
  * Jika online: upload ke Cloudinary, kembalikan URL.
  */
 async function handleFileOfflineAware(
-  file: File,
+  rawFile: File,
   fieldKey: string,
   folder: string,
   tags: string[],
   uploadFn: (file: File, tags: string[]) => Promise<string | null>,
   pendingFilesCtx: PendingFilesContextValue,
 ): Promise<string | null> {
+  let file = rawFile;
+  if (rawFile.type === "application/pdf") {
+    if (!navigator.onLine) {
+      showToast.warning(
+        "Konversi PDF tidak tersedia saat offline. Gunakan foto langsung.",
+      );
+      return null;
+    }
+    try {
+      file = await convertPdfToImage(rawFile);
+    } catch (err) {
+      console.error("[PDF Conversion Error]", err);
+      showErrorToast(
+        err instanceof Error
+          ? err
+          : new Error("Gagal mengkonversi PDF ke gambar"),
+      );
+      return null;
+    }
+  }
   if (!navigator.onLine) {
     const previewUrl = URL.createObjectURL(file);
     pendingFilesCtx.addPendingFile(fieldKey, {
@@ -287,11 +389,55 @@ async function handleFileOfflineAware(
       cloudinaryFolder: folder,
       tags,
     });
-    showToast.info("📴 Offline: foto disimpan, akan diupload saat online");
+    showToast.info("Offline: foto disimpan, akan diupload saat online");
     return previewUrl;
   }
   return uploadFn(file, tags);
 }
+
+// ─── Image Preview Modal ──────────────────────────────────────────────────────
+
+const ImagePreviewModal: React.FC<{
+  url: string | null;
+  onClose: () => void;
+}> = ({ url, onClose }) => {
+  useEffect(() => {
+    if (!url) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [url, onClose]);
+
+  if (!url) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-w-[90vw] max-h-[90vh] overflow-auto rounded-lg bg-black"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/60 text-white text-sm flex items-center justify-center hover:bg-black/80"
+        >
+          x
+        </button>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt="Preview"
+          className="max-w-full max-h-[85vh] object-contain block"
+        />
+      </div>
+    </div>
+  );
+};
 
 // ─── Form Survei ──────────────────────────────────────────────────────────────
 // Fields: koordinat, urlJaringan, diameterPipa, urlPosisiBak,
@@ -694,6 +840,7 @@ const FormPengawasan: React.FC<{
   jenisPekerjaan: JenisPekerjaan;
 }> = ({ data, onChange, workOrderId, jenisPekerjaan }) => {
   const pendingCtx = usePendingFiles();
+  const openPreview = usePreview();
   const {
     uploading,
     uploadProgress,
@@ -739,7 +886,12 @@ const FormPengawasan: React.FC<{
           {data.urlGambar.map((url, index) => (
             <div
               key={index}
-              className="relative aspect-square rounded-lg overflow-hidden border border-grey-stroke group"
+              className="relative aspect-square rounded-lg overflow-hidden border border-grey-stroke group cursor-pointer"
+              onClick={() => openPreview(url)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && openPreview(url)}
+              aria-label={`Lihat foto ${index + 1}`}
             >
               <Image
                 src={url}
@@ -747,15 +899,18 @@ const FormPengawasan: React.FC<{
                 fill
                 className="object-cover"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none" />
               <button
                 type="button"
-                onClick={() => removeGambar(index)}
-                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeGambar(index);
+                }}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
               >
-                ×
+                x
               </button>
-              <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1">
+              <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1 pointer-events-none">
                 <p className="text-[10px] text-white">{index + 1}</p>
               </div>
             </div>
@@ -794,11 +949,11 @@ const FormPengawasan: React.FC<{
           <label className="flex items-center justify-center gap-1.5 w-full p-3 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-sm text-grey cursor-pointer">
             <input
               type="file"
-              accept="image/jpeg,image/png,image/jpg,image/webp"
+              accept="image/jpeg,image/png,image/jpg,image/webp,application/pdf"
               onChange={handleFileChange}
               className="sr-only"
             />
-            🖼️ Galeri ({data.urlGambar.length} foto)
+            Galeri ({data.urlGambar.length} foto)
           </label>
         </div>
       )}
@@ -811,6 +966,404 @@ const FormPengawasan: React.FC<{
           placeholder="Catatan pengawasan..."
           value={data.catatan}
           onChange={(e) => onChange({ ...data, catatan: e.target.value })}
+          className={textareaClass}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ─── Form Maintenance (Pemeliharaan Smart Water Meter) ───────────────────────
+// Fields: kondisi sebelum (daya, koneksi, foto[]), kondisi setelah (idem), catatan
+// Plus peta rute teknisi ke lokasi pekerjaan (jika koordinatLokasi tersedia)
+
+const FormMaintenance: React.FC<{
+  data: MaintenanceData;
+  onChange: (data: MaintenanceData) => void;
+  workOrderId: string;
+  koordinatLokasi?: { longitude: number; latitude: number } | null;
+}> = ({ data, onChange, workOrderId, koordinatLokasi }) => {
+  const pendingCtx = usePendingFiles();
+  const openPreview = usePreview();
+  const sebelumUpload = useImageUpload("flowin-teknisi/maintenance");
+  const setelahUpload = useImageUpload("flowin-teknisi/maintenance");
+
+  const set = <K extends keyof MaintenanceData>(
+    key: K,
+    value: MaintenanceData[K],
+  ) => onChange({ ...data, [key]: value });
+
+  // ─── Handler foto sebelum ────────────────────────────────────────────────
+  const handleFotoSebelumChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const nextIdx = data.fotoSebelum.length;
+    const url = await handleFileOfflineAware(
+      file,
+      `fotoSebelum_${nextIdx}`,
+      "flowin-teknisi/maintenance",
+      ["work-order", "maintenance", workOrderId, "sebelum"],
+      (f, t) => sebelumUpload.uploadFile(f, t),
+      pendingCtx,
+    );
+    if (url) set("fotoSebelum", [...data.fotoSebelum, url]);
+  };
+
+  const removeFotoSebelum = (index: number) => {
+    const url = data.fotoSebelum[index];
+    if (url?.startsWith("blob:")) {
+      pendingCtx.removePendingFile(`fotoSebelum_${index}`);
+      URL.revokeObjectURL(url);
+    }
+    set(
+      "fotoSebelum",
+      data.fotoSebelum.filter((_, i) => i !== index),
+    );
+  };
+
+  // ─── Handler foto setelah ────────────────────────────────────────────────
+  const handleFotoSetelahChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const nextIdx = data.fotoSetelah.length;
+    const url = await handleFileOfflineAware(
+      file,
+      `fotoSetelah_${nextIdx}`,
+      "flowin-teknisi/maintenance",
+      ["work-order", "maintenance", workOrderId, "setelah"],
+      (f, t) => setelahUpload.uploadFile(f, t),
+      pendingCtx,
+    );
+    if (url) set("fotoSetelah", [...data.fotoSetelah, url]);
+  };
+
+  const removeFotoSetelah = (index: number) => {
+    const url = data.fotoSetelah[index];
+    if (url?.startsWith("blob:")) {
+      pendingCtx.removePendingFile(`fotoSetelah_${index}`);
+      URL.revokeObjectURL(url);
+    }
+    set(
+      "fotoSetelah",
+      data.fotoSetelah.filter((_, i) => i !== index),
+    );
+  };
+
+  const radioClass =
+    "flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm transition-colors";
+  const radioActiveClass =
+    "border-moss-stone bg-moss-stone/10 text-moss-stone font-medium";
+  const radioInactiveClass =
+    "border-grey-stroke text-grey hover:border-moss-stone/50";
+
+  return (
+    <div className="space-y-5">
+      {/* ─── Peta Rute ─────────────────────────────────────────────────── */}
+      {koordinatLokasi && (
+        <div>
+          <p className="text-xs font-semibold text-neutral-03 mb-2">
+            Rute ke Lokasi Pekerjaan
+          </p>
+          <MapRuteTeknisi koordinatTujuan={koordinatLokasi} />
+        </div>
+      )}
+
+      {/* ─── Kondisi Sebelum ─────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-neutral-03 uppercase tracking-wide border-b border-grey-stroke pb-1">
+          Kondisi Sebelum Pemeliharaan
+        </p>
+
+        {/* Daya */}
+        <div>
+          <label className="text-xs font-medium text-neutral-03 mb-2 block">
+            Status Daya
+          </label>
+          <div className="flex gap-2">
+            {(["menyala", "mati"] as const).map((val) => (
+              <label
+                key={val}
+                className={`${radioClass} flex-1 justify-center ${data.kondisiSebelumDaya === val ? radioActiveClass : radioInactiveClass}`}
+              >
+                <input
+                  type="radio"
+                  name="kondisiSebelumDaya"
+                  value={val}
+                  checked={data.kondisiSebelumDaya === val}
+                  onChange={() => set("kondisiSebelumDaya", val)}
+                  className="sr-only"
+                />
+                {val === "menyala" ? "Menyala" : "Mati"}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Koneksi */}
+        <div>
+          <label className="text-xs font-medium text-neutral-03 mb-2 block">
+            Status Koneksi
+          </label>
+          <div className="flex gap-2">
+            {(["terkoneksi", "tidak_terkoneksi"] as const).map((val) => (
+              <label
+                key={val}
+                className={`${radioClass} flex-1 justify-center ${data.kondisiSebelumKoneksi === val ? radioActiveClass : radioInactiveClass}`}
+              >
+                <input
+                  type="radio"
+                  name="kondisiSebelumKoneksi"
+                  value={val}
+                  checked={data.kondisiSebelumKoneksi === val}
+                  onChange={() => set("kondisiSebelumKoneksi", val)}
+                  className="sr-only"
+                />
+                {val === "terkoneksi" ? "Terkoneksi" : "Tidak Terkoneksi"}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Foto Sebelum */}
+        <div>
+          <label className="text-xs font-medium text-neutral-03 mb-2 block">
+            Foto Kondisi Sebelum
+          </label>
+          {data.fotoSebelum.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+              {data.fotoSebelum.map((url, i) => (
+                <div
+                  key={i}
+                  className="relative aspect-square rounded-lg overflow-hidden border border-grey-stroke group cursor-pointer"
+                  onClick={() => openPreview(url)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && openPreview(url)}
+                  aria-label={`Lihat foto sebelum ${i + 1}`}
+                >
+                  <Image
+                    src={url}
+                    alt={`Sebelum ${i + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFotoSebelum(i);
+                    }}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  >
+                    x
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1 pointer-events-none">
+                    <p className="text-[10px] text-white">{i + 1}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {sebelumUpload.uploading ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
+              <CircularProgress
+                progress={sebelumUpload.uploadProgress}
+                size={36}
+                strokeWidth={3}
+              />
+              <p className="text-xs text-neutral-03 flex-1">
+                Mengunggah foto sebelum...
+              </p>
+              <button
+                type="button"
+                onClick={sebelumUpload.cancelUpload}
+                className="px-2 py-1 rounded border border-grey-stroke text-xs text-neutral-03 hover:bg-gray-100"
+              >
+                Batal
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/jpg,image/webp"
+                  capture="environment"
+                  onChange={handleFotoSebelumChange}
+                  className="sr-only"
+                />
+                Kamera
+              </label>
+              <label className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/jpg,image/webp,application/pdf"
+                  onChange={handleFotoSebelumChange}
+                  className="sr-only"
+                />
+                Galeri ({data.fotoSebelum.length})
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ─── Kondisi Setelah ─────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-neutral-03 uppercase tracking-wide border-b border-grey-stroke pb-1">
+          Kondisi Setelah Pemeliharaan
+        </p>
+
+        {/* Daya */}
+        <div>
+          <label className="text-xs font-medium text-neutral-03 mb-2 block">
+            Status Daya
+          </label>
+          <div className="flex gap-2">
+            {(["menyala", "mati"] as const).map((val) => (
+              <label
+                key={val}
+                className={`${radioClass} flex-1 justify-center ${data.kondisiSetelahDaya === val ? radioActiveClass : radioInactiveClass}`}
+              >
+                <input
+                  type="radio"
+                  name="kondisiSetelahDaya"
+                  value={val}
+                  checked={data.kondisiSetelahDaya === val}
+                  onChange={() => set("kondisiSetelahDaya", val)}
+                  className="sr-only"
+                />
+                {val === "menyala" ? "Menyala" : "Mati"}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Koneksi */}
+        <div>
+          <label className="text-xs font-medium text-neutral-03 mb-2 block">
+            Status Koneksi
+          </label>
+          <div className="flex gap-2">
+            {(["terkoneksi", "tidak_terkoneksi"] as const).map((val) => (
+              <label
+                key={val}
+                className={`${radioClass} flex-1 justify-center ${data.kondisiSetelahKoneksi === val ? radioActiveClass : radioInactiveClass}`}
+              >
+                <input
+                  type="radio"
+                  name="kondisiSetelahKoneksi"
+                  value={val}
+                  checked={data.kondisiSetelahKoneksi === val}
+                  onChange={() => set("kondisiSetelahKoneksi", val)}
+                  className="sr-only"
+                />
+                {val === "terkoneksi" ? "Terkoneksi" : "Tidak Terkoneksi"}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Foto Setelah */}
+        <div>
+          <label className="text-xs font-medium text-neutral-03 mb-2 block">
+            Foto Kondisi Setelah
+          </label>
+          {data.fotoSetelah.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+              {data.fotoSetelah.map((url, i) => (
+                <div
+                  key={i}
+                  className="relative aspect-square rounded-lg overflow-hidden border border-grey-stroke group cursor-pointer"
+                  onClick={() => openPreview(url)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && openPreview(url)}
+                  aria-label={`Lihat foto setelah ${i + 1}`}
+                >
+                  <Image
+                    src={url}
+                    alt={`Setelah ${i + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFotoSetelah(i);
+                    }}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  >
+                    x
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1 pointer-events-none">
+                    <p className="text-[10px] text-white">{i + 1}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {setelahUpload.uploading ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-grey-stroke bg-gray-50">
+              <CircularProgress
+                progress={setelahUpload.uploadProgress}
+                size={36}
+                strokeWidth={3}
+              />
+              <p className="text-xs text-neutral-03 flex-1">
+                Mengunggah foto setelah...
+              </p>
+              <button
+                type="button"
+                onClick={setelahUpload.cancelUpload}
+                className="px-2 py-1 rounded border border-grey-stroke text-xs text-neutral-03 hover:bg-gray-100"
+              >
+                Batal
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/jpg,image/webp"
+                  capture="environment"
+                  onChange={handleFotoSetelahChange}
+                  className="sr-only"
+                />
+                Kamera
+              </label>
+              <label className="flex items-center justify-center gap-1.5 w-full p-2.5 rounded-lg border-2 border-dashed border-grey-stroke hover:border-moss-stone hover:bg-moss-stone/5 transition-colors text-xs text-grey cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/jpg,image/webp,application/pdf"
+                  onChange={handleFotoSetelahChange}
+                  className="sr-only"
+                />
+                Galeri ({data.fotoSetelah.length})
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ─── Catatan ─────────────────────────────────────────────────────── */}
+      <div>
+        <label className="text-xs font-medium text-neutral-03 mb-1 block">
+          Catatan
+        </label>
+        <textarea
+          rows={3}
+          placeholder="Catatan pemeliharaan..."
+          value={data.catatan}
+          onChange={(e) => set("catatan", e.target.value)}
           className={textareaClass}
         />
       </div>
@@ -845,10 +1398,19 @@ const ROImage: React.FC<{ url?: string | null; alt: string }> = ({
   url,
   alt,
 }) => {
+  const openPreview = usePreview();
   if (!url) return <p className="text-sm text-grey italic">Tidak ada foto</p>;
   return (
-    <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden border border-grey-stroke">
+    <div
+      className="relative w-full aspect-4/3 rounded-lg overflow-hidden border border-grey-stroke cursor-pointer group"
+      onClick={() => openPreview(url)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && openPreview(url)}
+      aria-label="Lihat foto"
+    >
       <Image src={url} alt={alt} fill className="object-cover" />
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none" />
     </div>
   );
 };
@@ -940,37 +1502,128 @@ const ReadOnlyPemasangan: React.FC<{ p: IProgresData }> = ({ p }) => (
   </div>
 );
 
-const ReadOnlyPengawasan: React.FC<{ p: IProgresData }> = ({ p }) => (
-  <div className="space-y-3">
-    <ROField label="Foto Bukti">
-      {p.urlGambar && p.urlGambar.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {p.urlGambar.map((url: string, i: number) => (
-            <div
-              key={i}
-              className="relative aspect-square rounded-lg overflow-hidden border border-grey-stroke"
-            >
-              <Image
-                src={url}
-                alt={`Foto ${i + 1}`}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1">
-                <p className="text-[10px] text-white">{i + 1}</p>
+const ReadOnlyPengawasan: React.FC<{ p: IProgresData }> = ({ p }) => {
+  const openPreview = usePreview();
+  return (
+    <div className="space-y-3">
+      <ROField label="Foto Bukti">
+        {p.urlGambar && p.urlGambar.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {p.urlGambar.map((url: string, i: number) => (
+              <div
+                key={i}
+                className="relative aspect-square rounded-lg overflow-hidden border border-grey-stroke cursor-pointer group"
+                onClick={() => openPreview(url)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === "Enter" && openPreview(url)}
+                aria-label={`Lihat foto ${i + 1}`}
+              >
+                <Image
+                  src={url}
+                  alt={`Foto ${i + 1}`}
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1 pointer-events-none">
+                  <p className="text-[10px] text-white">{i + 1}</p>
+                </div>
               </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-grey italic">Tidak ada foto</p>
+        )}
+      </ROField>
+      <ROField label="Catatan">
+        <ROText value={p.catatan} />
+      </ROField>
+    </div>
+  );
+};
+
+const ReadOnlyMaintenance: React.FC<{ p: IProgresData }> = ({ p }) => {
+  const openPreview = usePreview();
+  const labelDaya = (v?: string | null) =>
+    v === "menyala" ? "Menyala" : v === "mati" ? " Mati" : "—";
+  const labelKoneksi = (v?: string | null) =>
+    v === "terkoneksi"
+      ? " Terkoneksi"
+      : v === "tidak_terkoneksi"
+        ? " Tidak Terkoneksi"
+        : "—";
+
+  const FotoGrid: React.FC<{ urls?: string[] | null; label: string }> = ({
+    urls,
+    label,
+  }) => {
+    if (!urls || urls.length === 0)
+      return <p className="text-sm text-grey italic">Tidak ada foto</p>;
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {urls.map((url, i) => (
+          <div
+            key={i}
+            className="relative aspect-square rounded-lg overflow-hidden border border-grey-stroke cursor-pointer group"
+            onClick={() => openPreview(url)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && openPreview(url)}
+            aria-label={`Lihat foto ${i + 1}`}
+          >
+            <Image
+              src={url}
+              alt={`${label} ${i + 1}`}
+              fill
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none" />
+            <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1 pointer-events-none">
+              <p className="text-[10px] text-white">{i + 1}</p>
             </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-grey italic">Tidak ada foto</p>
-      )}
-    </ROField>
-    <ROField label="Catatan">
-      <ROText value={p.catatan} />
-    </ROField>
-  </div>
-);
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-neutral-03 uppercase tracking-wide border-b border-grey-stroke pb-1">
+          Kondisi Sebelum
+        </p>
+        <ROField label="Daya">
+          <ROText value={labelDaya(p.kondisiSebelumDaya)} />
+        </ROField>
+        <ROField label="Koneksi">
+          <ROText value={labelKoneksi(p.kondisiSebelumKoneksi)} />
+        </ROField>
+        <ROField label="Foto">
+          <FotoGrid urls={p.fotoSebelum} label="Sebelum" />
+        </ROField>
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-neutral-03 uppercase tracking-wide border-b border-grey-stroke pb-1">
+          Kondisi Setelah
+        </p>
+        <ROField label="Daya">
+          <ROText value={labelDaya(p.kondisiSetelahDaya)} />
+        </ROField>
+        <ROField label="Koneksi">
+          <ROText value={labelKoneksi(p.kondisiSetelahKoneksi)} />
+        </ROField>
+        <ROField label="Foto">
+          <FotoGrid urls={p.fotoSetelah} label="Setelah" />
+        </ROField>
+      </div>
+      <ROField label="Catatan">
+        <ROText value={p.catatan} />
+      </ROField>
+    </div>
+  );
+};
 
 // ─── Read-only wrapper (dikirim / selesai) ────────────────────────────────────
 
@@ -1012,6 +1665,9 @@ const ReadOnlyProgresView: React.FC<{
         progres.jenisPekerjaan === "penyelesaian_laporan") && (
         <ReadOnlyPengawasan p={progres} />
       )}
+      {progres.jenisPekerjaan === "maintenance" && (
+        <ReadOnlyMaintenance p={progres} />
+      )}
     </div>
   );
 };
@@ -1024,6 +1680,7 @@ function buildPayload(
   rab: RabData,
   pemasangan: PemasanganData,
   pengawasan: PengawasanData,
+  maintenance: MaintenanceData,
 ): Record<string, unknown> {
   const nullable = (v: string) => v.trim() || null;
   const numOrNull = (v: string) => {
@@ -1077,6 +1734,18 @@ function buildPayload(
           pengawasan.urlGambar.length > 0 ? pengawasan.urlGambar : null,
         catatan: nullable(pengawasan.catatan),
       };
+    case "maintenance":
+      return {
+        kondisiSebelumDaya: maintenance.kondisiSebelumDaya || null,
+        kondisiSebelumKoneksi: maintenance.kondisiSebelumKoneksi || null,
+        fotoSebelum:
+          maintenance.fotoSebelum.length > 0 ? maintenance.fotoSebelum : null,
+        kondisiSetelahDaya: maintenance.kondisiSetelahDaya || null,
+        kondisiSetelahKoneksi: maintenance.kondisiSetelahKoneksi || null,
+        fotoSetelah:
+          maintenance.fotoSetelah.length > 0 ? maintenance.fotoSetelah : null,
+        catatan: nullable(maintenance.catatan),
+      };
     default:
       return {};
   }
@@ -1085,6 +1754,11 @@ function buildPayload(
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
+  // ─── Image preview state ───────────────────────────────────────────────────
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const openPreview = useCallback((url: string) => setPreviewUrl(url), []);
+  const closePreview = useCallback(() => setPreviewUrl(null), []);
+
   // ─── Offline pending files ─────────────────────────────────────────────────
   const { isOnline, refreshCount } = useOfflineSyncContext();
   const [pendingFilesMap, setPendingFilesMap] = useState<
@@ -1144,6 +1818,16 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
     catatan: "",
   });
 
+  const [maintenanceData, setMaintenanceData] = useState<MaintenanceData>({
+    kondisiSebelumDaya: "",
+    kondisiSebelumKoneksi: "",
+    fotoSebelum: [],
+    kondisiSetelahDaya: "",
+    kondisiSetelahKoneksi: "",
+    fotoSetelah: [],
+    catatan: "",
+  });
+
   // ─── Pre-fill dari data progres tersimpan ─────────────────────────────────
   const { data: progresResult, isLoading: progresLoading } =
     useProgresWorkOrder(workOrder.id);
@@ -1178,6 +1862,26 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
         fotoRumah: progres.fotoRumah ?? "",
         fotoMeteran: progres.fotoMeteran ?? "",
         fotoMeteranDanRumah: progres.fotoMeteranDanRumah ?? "",
+        catatan: progres.catatan ?? "",
+      });
+    } else if (progres.jenisPekerjaan === "maintenance") {
+      setMaintenanceData({
+        kondisiSebelumDaya:
+          (progres.kondisiSebelumDaya as "menyala" | "mati" | "") ?? "",
+        kondisiSebelumKoneksi:
+          (progres.kondisiSebelumKoneksi as
+            | "terkoneksi"
+            | "tidak_terkoneksi"
+            | "") ?? "",
+        fotoSebelum: progres.fotoSebelum ?? [],
+        kondisiSetelahDaya:
+          (progres.kondisiSetelahDaya as "menyala" | "mati" | "") ?? "",
+        kondisiSetelahKoneksi:
+          (progres.kondisiSetelahKoneksi as
+            | "terkoneksi"
+            | "tidak_terkoneksi"
+            | "") ?? "",
+        fotoSetelah: progres.fotoSetelah ?? [],
         catatan: progres.catatan ?? "",
       });
     } else {
@@ -1225,28 +1929,36 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
     const progres = progresResult?.progresWorkOrder;
     if (!progres) {
       return (
-        <div className="bg-white rounded-xl border border-grey-stroke p-4">
-          <h3 className="text-sm font-semibold text-neutral-03 mb-3">
-            Pengerjaan
-          </h3>
-          <div
-            className={`p-3 rounded-lg ${workOrder.status === "selesai" ? "bg-green-50 border border-green-200" : "bg-purple-50 border border-purple-200"}`}
-          >
-            <p
-              className={`text-xs font-medium ${workOrder.status === "selesai" ? "text-green-800" : "text-purple-800"}`}
+        <PreviewContext.Provider value={openPreview}>
+          <ImagePreviewModal url={previewUrl} onClose={closePreview} />
+          <div className="bg-white rounded-xl border border-grey-stroke p-4">
+            <h3 className="text-sm font-semibold text-neutral-03 mb-3">
+              Pengerjaan
+            </h3>
+            <div
+              className={`p-3 rounded-lg ${workOrder.status === "selesai" ? "bg-green-50 border border-green-200" : "bg-purple-50 border border-purple-200"}`}
             >
-              {workOrder.status === "selesai"
-                ? " Pekerjaan telah disetujui dan selesai."
-                : " Hasil pekerjaan sudah dikirim — menunggu review admin."}
+              <p
+                className={`text-xs font-medium ${workOrder.status === "selesai" ? "text-green-800" : "text-purple-800"}`}
+              >
+                {workOrder.status === "selesai"
+                  ? "Pekerjaan telah disetujui dan selesai."
+                  : "Hasil pekerjaan sudah dikirim — menunggu review admin."}
+              </p>
+            </div>
+            <p className="text-xs text-grey mt-3">
+              Data pengerjaan tidak tersedia.
             </p>
           </div>
-          <p className="text-xs text-grey mt-3">
-            Data pengerjaan tidak tersedia.
-          </p>
-        </div>
+        </PreviewContext.Provider>
       );
     }
-    return <ReadOnlyProgresView workOrder={workOrder} progres={progres} />;
+    return (
+      <PreviewContext.Provider value={openPreview}>
+        <ImagePreviewModal url={previewUrl} onClose={closePreview} />
+        <ReadOnlyProgresView workOrder={workOrder} progres={progres} />
+      </PreviewContext.Provider>
+    );
   }
 
   const getPayload = () =>
@@ -1256,6 +1968,7 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
       rabData,
       pemasanganData,
       pengawasanData,
+      maintenanceData,
     );
 
   // ─── Helper: queue ke offline IndexedDB ─────────────────────────────────────
@@ -1303,7 +2016,7 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
       try {
         await queueOffline("simpan_progres");
         showToast.info(
-          "📴 Data disimpan offline. Akan diupload saat ada koneksi.",
+          "Data disimpan offline. Akan diupload saat ada koneksi.",
         );
       } catch (err) {
         showErrorToast(err);
@@ -1334,12 +2047,18 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
       showToast.warning("Upload minimal satu foto bukti pekerjaan");
       return;
     }
+    if (jenis === "maintenance" && maintenanceData.fotoSebelum.length === 0) {
+      showToast.warning(
+        "Upload minimal satu foto kondisi sebelum pemeliharaan",
+      );
+      return;
+    }
     // Offline atau ada pending files? → queue dengan type kirim_hasil
     if (!isOnline || pendingFilesMap.size > 0) {
       try {
         await queueOffline("kirim_hasil");
         showToast.info(
-          "📴 Data & pengiriman hasil disimpan offline. Akan diproses saat ada koneksi.",
+          "Data & pengiriman hasil disimpan offline. Akan diproses saat ada koneksi.",
         );
       } catch (err) {
         showErrorToast(err);
@@ -1364,103 +2083,114 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
 
   return (
     <PendingFilesContext.Provider value={pendingFilesCtxValue}>
-      <div className="bg-white rounded-xl border border-grey-stroke p-4">
-        <h3 className="text-sm font-semibold text-neutral-03 mb-3">
-          Pengerjaan
-        </h3>
+      <PreviewContext.Provider value={openPreview}>
+        <ImagePreviewModal url={previewUrl} onClose={closePreview} />
+        <div className="bg-white rounded-xl border border-grey-stroke p-4">
+          <h3 className="text-sm font-semibold text-neutral-03 mb-3">
+            Pengerjaan
+          </h3>
 
-        {/* Offline pending banner */}
-        {pendingFilesMap.size > 0 && (
-          <div className="mb-3 flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
-            <span className="text-amber-600 text-sm">📴</span>
-            <p className="text-xs text-amber-800 font-medium">
-              {pendingFilesMap.size} foto tersimpan offline — klik &quot;Simpan
-              Draft&quot; untuk mengantri upload
-            </p>
-          </div>
-        )}
-
-        {canWork && (
-          <>
-            {/* Revisi info */}
-            {workOrder.status === "revisi" && workOrder.catatanReview && (
-              <div className="mb-4 p-3 rounded-lg bg-orange-50 border border-orange-200">
-                <p className="text-xs font-medium text-orange-800">
-                  Catatan Revisi dari Admin:
-                </p>
-                <p className="text-xs text-orange-700 mt-1">
-                  {workOrder.catatanReview}
-                </p>
-              </div>
-            )}
-
-            {/* Form dinamis sesuai jenis pekerjaan */}
-            <div className="mb-4">
-              {workOrder.jenisPekerjaan === "survei" && (
-                <FormSurvei
-                  data={surveiData}
-                  onChange={setSurveiData}
-                  workOrderId={workOrder.id}
-                />
-              )}
-              {workOrder.jenisPekerjaan === "rab" && (
-                <FormRab
-                  data={rabData}
-                  onChange={setRabData}
-                  workOrderId={workOrder.id}
-                />
-              )}
-              {workOrder.jenisPekerjaan === "pemasangan" && (
-                <FormPemasangan
-                  data={pemasanganData}
-                  onChange={setPemasanganData}
-                  workOrderId={workOrder.id}
-                />
-              )}
-              {(workOrder.jenisPekerjaan === "pengawasan_pemasangan" ||
-                workOrder.jenisPekerjaan === "pengawasan_setelah_pemasangan" ||
-                workOrder.jenisPekerjaan === "penyelesaian_laporan") && (
-                <FormPengawasan
-                  data={pengawasanData}
-                  onChange={setPengawasanData}
-                  workOrderId={workOrder.id}
-                  jenisPekerjaan={workOrder.jenisPekerjaan}
-                />
-              )}
+          {/* Offline pending banner */}
+          {pendingFilesMap.size > 0 && (
+            <div className="mb-3 flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+              <p className="text-xs text-amber-800 font-medium">
+                {pendingFilesMap.size} foto tersimpan offline — klik
+                &quot;Simpan Draft&quot; untuk mengantri upload
+              </p>
             </div>
+          )}
 
-            {/* Action buttons */}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handleSimpanProgres}
-                disabled={isLoading}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-moss-stone text-moss-stone text-sm font-medium hover:bg-moss-stone/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {simpanProgresMutation.isPending
-                  ? "Menyimpan..."
-                  : !isOnline
-                    ? "Simpan Offline"
-                    : "Simpan Draft"}
-              </button>
-              {canSubmit && (
+          {canWork && (
+            <>
+              {/* Revisi info */}
+              {workOrder.status === "revisi" && workOrder.catatanReview && (
+                <div className="mb-4 p-3 rounded-lg bg-orange-50 border border-orange-200">
+                  <p className="text-xs font-medium text-orange-800">
+                    Catatan Revisi dari Admin:
+                  </p>
+                  <p className="text-xs text-orange-700 mt-1">
+                    {workOrder.catatanReview}
+                  </p>
+                </div>
+              )}
+
+              {/* Form dinamis sesuai jenis pekerjaan */}
+              <div className="mb-4">
+                {workOrder.jenisPekerjaan === "survei" && (
+                  <FormSurvei
+                    data={surveiData}
+                    onChange={setSurveiData}
+                    workOrderId={workOrder.id}
+                  />
+                )}
+                {workOrder.jenisPekerjaan === "rab" && (
+                  <FormRab
+                    data={rabData}
+                    onChange={setRabData}
+                    workOrderId={workOrder.id}
+                  />
+                )}
+                {workOrder.jenisPekerjaan === "pemasangan" && (
+                  <FormPemasangan
+                    data={pemasanganData}
+                    onChange={setPemasanganData}
+                    workOrderId={workOrder.id}
+                  />
+                )}
+                {(workOrder.jenisPekerjaan === "pengawasan_pemasangan" ||
+                  workOrder.jenisPekerjaan ===
+                    "pengawasan_setelah_pemasangan" ||
+                  workOrder.jenisPekerjaan === "penyelesaian_laporan") && (
+                  <FormPengawasan
+                    data={pengawasanData}
+                    onChange={setPengawasanData}
+                    workOrderId={workOrder.id}
+                    jenisPekerjaan={workOrder.jenisPekerjaan}
+                  />
+                )}
+                {workOrder.jenisPekerjaan === "maintenance" && (
+                  <FormMaintenance
+                    data={maintenanceData}
+                    onChange={setMaintenanceData}
+                    workOrderId={workOrder.id}
+                    koordinatLokasi={workOrder.koordinatLokasi}
+                  />
+                )}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={handleKirimHasil}
+                  onClick={handleSimpanProgres}
                   disabled={isLoading}
-                  className="flex-1 px-4 py-2.5 rounded-lg bg-moss-stone text-white text-sm font-medium hover:bg-moss-stone/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-moss-stone text-moss-stone text-sm font-medium hover:bg-moss-stone/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {kirimHasilMutation.isPending
-                    ? "Mengirim..."
+                  {simpanProgresMutation.isPending
+                    ? "Menyimpan..."
                     : !isOnline
-                      ? "Antri Kirim (Offline)"
-                      : "Kirim Hasil"}
+                      ? "Simpan Offline"
+                      : "Simpan Draft"}
                 </button>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+                {canSubmit && (
+                  <button
+                    type="button"
+                    onClick={handleKirimHasil}
+                    disabled={isLoading}
+                    className="flex-1 px-4 py-2.5 rounded-lg bg-moss-stone text-white text-sm font-medium hover:bg-moss-stone/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {kirimHasilMutation.isPending
+                      ? "Mengirim..."
+                      : !isOnline
+                        ? "Antri Kirim (Offline)"
+                        : "Kirim Hasil"}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </PreviewContext.Provider>
     </PendingFilesContext.Provider>
   );
 };

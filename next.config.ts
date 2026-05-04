@@ -52,6 +52,16 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
+  // Alias canvas → false: pdfjs-dist di browser tidak butuh paket canvas Node.js
+  webpack: (config) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (config.resolve as any).alias = {
+      ...(config.resolve as any).alias,
+      canvas: false,
+    };
+    return config;
+  },
+
   // Expose env variables ke Edge Runtime (middleware)
   env: {
     JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET,

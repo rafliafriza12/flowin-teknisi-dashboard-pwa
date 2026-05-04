@@ -67,7 +67,12 @@ const WORK_ORDER_FIELDS = `
   idPengawasanPemasangan
   idPengawasanSetelahPemasangan
   idPenyelesaianLaporan
+  idMaintenance
   idLaporan
+  koordinatLokasi {
+    longitude
+    latitude
+  }
   catatanReview
   riwayatReview {
     status
@@ -152,6 +157,12 @@ export const GET_PROGRES_WORK_ORDER = `
       fotoMeteran
       fotoMeteranDanRumah
       urlGambar
+      kondisiSebelumDaya
+      kondisiSebelumKoneksi
+      fotoSebelum
+      kondisiSetelahDaya
+      kondisiSetelahKoneksi
+      fotoSetelah
       catatan
     }
   }
