@@ -95,14 +95,14 @@ export async function setAuthCookies(
   cookieStore.set("access_token", accessToken, {
     httpOnly: true,
     secure,
-    sameSite: "strict",
+    sameSite: "lax", // "strict" memblokir cookie saat PWA diluncurkan dari home screen (null origin)
     path: "/",
     expires: new Date(Date.now() + 15 * 60 * 1000), // 15 menit (sesuai JWT exp)
   });
   cookieStore.set("refresh_token", refreshToken, {
     httpOnly: true,
     secure,
-    sameSite: "strict",
+    sameSite: "lax", // "lax" tetap aman: tidak dikirim pada cross-site POST
     path: "/",
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari
   });

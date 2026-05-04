@@ -67,7 +67,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Hanya redirect ke dashboard jika access_token VALID
+    // Punya access token valid → redirect ke dashboard
     if (accessToken) {
       const payload = await verifyToken(accessToken);
       if (payload) {
@@ -75,7 +75,13 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Token expired / tidak ada → biarkan tampil halaman login
+    // access_token expired/tidak ada TAPI masih punya refresh_token →
+    // user masih dianggap login, arahkan ke dashboard (client akan auto-refresh token)
+    if (refreshToken) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // Tidak punya token sama sekali → tampilkan halaman login
     return NextResponse.next();
   }
 
