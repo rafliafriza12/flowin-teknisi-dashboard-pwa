@@ -3,11 +3,14 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  // cacheOnFrontEndNav: true dipertahankan agar halaman yang dikunjungi ter-cache
-  cacheOnFrontEndNav: true,
-  // aggressiveFrontEndNavCaching DIMATIKAN — jika aktif, SW ikut meng-cache
-  // response redirect (/login) sebagai HTML navigasi, lalu menyajikannya saat
-  // offline sehingga app selalu landing di login meski sudah punya refresh_token.
+  // cacheOnFrontEndNav DIMATIKAN — jika aktif, plugin meng-inject handler
+  // StaleWhileRevalidate tersendiri ke SW yang men-serve cached HTML dulu
+  // (termasuk login page yang tersimpan sebelumnya) baru fetch ke network
+  // di background.  Artinya setiap buka app, user selalu lihat halaman lama
+  // dan baru melihat halaman baru setelah refresh.
+  // Workbox runtime cache di bawah (mode: navigate + NetworkFirst) sudah
+  // menangani offline navigation dengan benar — tidak perlu ini.
+  cacheOnFrontEndNav: false,
   aggressiveFrontEndNavCaching: false,
   reloadOnOnline: false,
   // Dev: SW dimatikan agar tidak bentrok dengan Next.js HMR
