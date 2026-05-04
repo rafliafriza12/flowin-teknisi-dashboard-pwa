@@ -95,7 +95,7 @@ export default function LaporanSection({ idLaporan }: LaporanSectionProps) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-neutral-03">
-            📋 Detail Laporan
+            Detail Laporan
           </h3>
           <p className="text-xs text-grey mt-0.5">{laporan.NamaLaporan}</p>
         </div>

@@ -125,7 +125,7 @@ const TugasDetail: React.FC<{ id: string }> = ({ id }) => {
               </p>
             ) : workOrder.jenisPekerjaan === "penyelesaian_laporan" ? (
               <p className="text-sm text-grey mt-0.5">
-                📋 Penyelesaian laporan pelanggan
+                Penyelesaian laporan pelanggan
               </p>
             ) : null}
           </div>
