@@ -3,10 +3,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import EditIcon from "@/components/atoms/icons/EditIcon";
 import CircularProgress from "@/components/atoms/CircularProgress";
-import {
-  uploadToCloudinary,
-  UploadOptions,
-} from "@/libs/cloudinary";
+import { uploadToCloudinary, UploadOptions } from "@/libs/cloudinary";
 import { showErrorToast, showToast } from "@/libs/toast";
 
 const MAX_FILE_SIZE_MB = 5;
@@ -28,7 +25,7 @@ interface VideoUploadProps {
 // Validate video file
 const validateVideoFile = (
   file: File,
-  maxSizeMB: number
+  maxSizeMB: number,
 ): { valid: boolean; error?: string } => {
   const allowedTypes = ["video/mp4", "video/x-matroska", "video/webm"];
   if (!allowedTypes.includes(file.type)) {
@@ -52,24 +49,27 @@ const validateVideoFile = (
 // Helper to get video thumbnail from Cloudinary URL
 export const getVideoThumbnail = (videoUrl: string): string => {
   if (!videoUrl) return "";
-  
+
   if (videoUrl.includes("cloudinary.com")) {
     return videoUrl
-      .replace("/video/upload/", "/video/upload/so_0,w_400,h_300,c_fill,f_jpg,q_auto/")
+      .replace(
+        "/video/upload/",
+        "/video/upload/so_0,w_400,h_300,c_fill,f_jpg,q_auto/",
+      )
       .replace(/\.(mp4|mkv|webm|mov)$/i, ".jpg");
   }
-  
+
   if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
     const videoId = extractYouTubeId(videoUrl);
     if (videoId) {
       return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
     }
   }
-  
+
   if (videoUrl.includes("vimeo.com")) {
     return "";
   }
-  
+
   return "";
 };
 
@@ -139,8 +139,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       const result = await uploadToCloudinary(
         file,
         uploadOptions,
-        (p) => setProgress(p),
-        abortController.signal
+        (progress) => setProgress(progress.percentage),
+        abortController.signal,
       );
 
       onChange(result.secure_url);
@@ -305,7 +305,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
           {/* Video indicator badge */}
           <div className="absolute top-3 left-3 px-2 py-1 bg-black/70 rounded text-white text-xs flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <svg
+              className="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
               <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z" />
             </svg>
             Video
@@ -357,9 +361,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
             <span className="text-xs text-grey">
               Max {maxSizeMB}MB files are allowed
             </span>
-            <span className="text-xs text-grey">
-              Supported: MP4, MKV, WebM
-            </span>
+            <span className="text-xs text-grey">Supported: MP4, MKV, WebM</span>
           </div>
         </label>
       )}

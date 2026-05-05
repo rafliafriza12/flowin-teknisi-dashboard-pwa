@@ -20,18 +20,24 @@ export interface UploadOptions {
   tags?: string[];
 }
 
+export interface UploadProgress {
+  loaded: number;
+  total: number;
+  percentage: number;
+}
+
 /**
  * Upload a file to Cloudinary with real-time progress tracking and cancellation support
  * @param file - File to upload
  * @param options - Upload options (folder, resourceType, etc.)
- * @param onProgress - Callback for real-time upload progress (0-100)
+ * @param onProgress - Callback for real-time upload progress with loaded, total, and percentage
  * @param abortSignal - AbortSignal to cancel the upload
  * @returns Promise with Cloudinary response containing secure_url
  */
 export async function uploadToCloudinary(
   file: File,
   options: UploadOptions = {},
-  onProgress?: (progress: number) => void,
+  onProgress?: (progress: UploadProgress) => void,
   abortSignal?: AbortSignal,
 ): Promise<CloudinaryUploadResponse> {
   const {
@@ -88,8 +94,12 @@ export async function uploadToCloudinary(
 
     xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable && onProgress) {
-        const percent = Math.round((event.loaded / event.total) * 100);
-        onProgress(percent);
+        const percentage = Math.round((event.loaded / event.total) * 100);
+        onProgress({
+          loaded: event.loaded,
+          total: event.total,
+          percentage,
+        });
       }
     });
 

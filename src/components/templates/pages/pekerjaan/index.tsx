@@ -13,6 +13,9 @@ import {
   TablePagination,
 } from "@/components/molecules/table";
 import StatusBadge from "@/components/atoms/StatusBadge";
+import StalenessIndicator from "@/components/atoms/StalenessIndicator";
+import PullToRefreshIndicator from "@/components/atoms/PullToRefreshIndicator";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { StatusPekerjaan, JenisPekerjaan } from "@/types/workOrder";
 import {
   LABEL_STATUS_PEKERJAAN,
@@ -22,6 +25,7 @@ import {
   LABEL_STATUS_RESPON,
 } from "@/types/workOrder";
 import { formatDate } from "@/libs/utils";
+import { queryKeys } from "@/libs/graphql";
 
 const SELECT_CLASS =
   "px-3 py-2 text-sm border border-grey-stroke rounded-lg bg-white text-neutral-02 focus:outline-none focus:ring-1 focus:ring-moss-stone appearance-none pr-8 bg-no-repeat bg-[right_0.5rem_center] bg-[length:1rem]";
@@ -43,12 +47,22 @@ const PekerjaanListTemplate: React.FC = () => {
   const workOrders = data?.workOrdersSaya?.data || [];
   const pagination = data?.workOrdersSaya?.pagination;
 
+  // Pull-to-refresh functionality
+  const pullToRefresh = usePullToRefresh({
+    queryKey: queryKeys.workOrders.sayaFiltered(
+      filters as Record<string, unknown>,
+    ),
+  });
+
   const handleFilterChange = () => {
     setPage(1);
   };
 
   return (
-    <div className="w-full flex flex-col gap-5">
+    <div className="w-full flex flex-col gap-5" data-scrollable>
+      {/* Pull-to-refresh indicator */}
+      <PullToRefreshIndicator {...pullToRefresh} />
+
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-neutral-03">Pekerjaan Saya</h1>
@@ -56,6 +70,14 @@ const PekerjaanListTemplate: React.FC = () => {
           Daftar semua pekerjaan yang ditugaskan kepada Anda
         </p>
       </div>
+
+      {/* Staleness Indicator */}
+      <StalenessIndicator
+        queryKey={queryKeys.workOrders.sayaFiltered(
+          filters as Record<string, unknown>,
+        )}
+        className="bg-blue-50 p-3 rounded-lg"
+      />
 
       {/* Filter row */}
       <div className="flex items-center gap-3 flex-wrap">

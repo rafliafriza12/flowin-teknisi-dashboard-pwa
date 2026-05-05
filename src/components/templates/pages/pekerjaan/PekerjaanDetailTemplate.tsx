@@ -4,6 +4,9 @@ import React from "react";
 import Link from "next/link";
 import { useWorkOrder, useWorkflowChain } from "@/services/workOrderService";
 import StatusBadge from "@/components/atoms/StatusBadge";
+import StalenessIndicator from "@/components/atoms/StalenessIndicator";
+import PullToRefreshIndicator from "@/components/atoms/PullToRefreshIndicator";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import {
   WorkflowChainTimeline,
   ResponAwalSection,
@@ -21,6 +24,7 @@ import {
   WARNA_STATUS_RESPON,
 } from "@/types/workOrder";
 import { formatDate } from "@/libs/utils";
+import { queryKeys } from "@/libs/graphql";
 
 interface PekerjaanDetailTemplateProps {
   id: string;
@@ -35,6 +39,11 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
   const { data: chainData, isLoading: chainLoading } = useWorkflowChain(
     workOrder?.idKoneksiData ?? "",
   );
+
+  // Pull-to-refresh functionality
+  const pullToRefresh = usePullToRefresh({
+    queryKey: queryKeys.workOrders.detail(id),
+  });
 
   if (isLoading) {
     return (
@@ -69,7 +78,10 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
   }
 
   return (
-    <div className="w-full flex flex-col gap-4">
+    <div className="w-full flex flex-col gap-4" data-scrollable>
+      {/* Pull-to-refresh indicator */}
+      <PullToRefreshIndicator {...pullToRefresh} />
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
         <Link
@@ -83,6 +95,12 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
           {LABEL_JENIS_PEKERJAAN[workOrder.jenisPekerjaan]}
         </span>
       </div>
+
+      {/* Staleness Indicator */}
+      <StalenessIndicator
+        queryKey={queryKeys.workOrders.detail(id)}
+        className="bg-blue-50 p-3 rounded-lg"
+      />
 
       {/* Header Card */}
       <div className="bg-white rounded-xl border border-grey-stroke p-4">
@@ -181,7 +199,9 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
           {!chainLoading && chainData?.workflowChain && (
             <WorkflowChainTimeline
               chain={chainData.workflowChain.filter(
-                (item) => item.jenisPekerjaan !== "penyelesaian_laporan",
+                (item) =>
+                  item.jenisPekerjaan !== "penyelesaian_laporan" &&
+                  item.jenisPekerjaan !== "maintenance",
               )}
             />
           )}

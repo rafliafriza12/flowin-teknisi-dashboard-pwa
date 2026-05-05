@@ -17,26 +17,54 @@ const withPWA = withPWAInit({
     disableDevLogs: true,
     // Jangan cache request API/GraphQL & HMR
     exclude: [/\/api\//, /\/_next\/webpack-hmr/],
+    // Import custom push notification handlers
+    importScripts: ["/sw-custom.js"],
     runtimeCaching: [
-      // Cache RSC payload (navigasi App Router Next.js)
+      // ── Static assets: CacheFirst 30 hari ──────────────────────────────────
+      // JS/CSS chunks berubah hanya saat build (content hash di nama file)
+      {
+        urlPattern: /\/_next\/static\/.*/,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "flowin-static-cache",
+          expiration: {
+            maxEntries: 200,
+            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 hari
+          },
+        },
+      },
+      // ── Gambar & aset publik: CacheFirst 30 hari ──────────────────────────
+      {
+        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "flowin-image-cache",
+          expiration: {
+            maxEntries: 100,
+            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 hari
+          },
+        },
+      },
+      // ── RSC payload (App Router): StaleWhileRevalidate 24 jam ─────────────
+      // Respons langsung dari cache, refresh di background
       {
         urlPattern: /\/_next\/data\/.*/,
-        handler: "NetworkFirst",
+        handler: "StaleWhileRevalidate",
         options: {
           cacheName: "flowin-rsc-cache",
           expiration: {
             maxEntries: 50,
-            maxAgeSeconds: 24 * 60 * 60,
+            maxAgeSeconds: 24 * 60 * 60, // 1 hari
           },
-          networkTimeoutSeconds: 5,
         },
       },
-      // Cache halaman navigasi HTML
+      // ── Halaman HTML: NetworkFirst 5 s timeout, 1 hari cache ─────────────
+      // (api/ & webpack-hmr sudah di-exclude di atas)
       {
         urlPattern: /^https?.*/,
         handler: "NetworkFirst",
         options: {
-          cacheName: "flowin-teknisi-cache",
+          cacheName: "flowin-page-cache",
           expiration: {
             maxEntries: 200,
             maxAgeSeconds: 24 * 60 * 60, // 1 hari

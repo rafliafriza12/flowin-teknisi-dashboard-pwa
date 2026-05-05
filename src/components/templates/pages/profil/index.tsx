@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useMe, useChangePassword, useLogout } from "@/services/authService";
 import { showToast } from "@/libs/toast";
 import LogoutIcon from "@/components/atoms/icons/LogoutIcon";
 import EyeIcon from "@/components/atoms/icons/EyeIcon";
 import EyeOffIcon from "@/components/atoms/icons/EyeOffIcon";
 import XIcon from "@/components/atoms/icons/XIcon";
+import { createPushSubscriptionManager } from "@/libs/pushSubscription";
+import { getPushSubscription } from "@/libs/pushSubscriptionStorage";
+import {
+  isAnalyticsEnabled,
+  setAnalyticsEnabled,
+} from "@/libs/analyticsPreferences";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -290,6 +296,232 @@ const InfoItem: React.FC<{
   </div>
 );
 
+// ─── Notification Toggle ──────────────────────────────────────────────────────
+
+interface NotificationToggleProps {
+  userId: string;
+}
+
+const NotificationToggle: React.FC<NotificationToggleProps> = ({ userId }) => {
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isToggling, setIsToggling] = useState(false);
+  const [isSupported, setIsSupported] = useState(true);
+
+  // Check notification support and current status
+  useEffect(() => {
+    async function checkStatus() {
+      // Check if Notification API is supported
+      if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+        setIsSupported(false);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Check if subscription exists
+        const subscription = await getPushSubscription(userId);
+        const hasPermission = Notification.permission === "granted";
+
+        // Enabled if we have permission and subscription
+        setIsEnabled(hasPermission && subscription !== null);
+      } catch (error) {
+        console.error("Failed to check notification status:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    checkStatus();
+  }, [userId]);
+
+  const handleToggle = async () => {
+    setIsToggling(true);
+
+    try {
+      const manager = createPushSubscriptionManager(userId);
+
+      if (isEnabled) {
+        // Disable: unsubscribe
+        await manager.unsubscribe();
+        setIsEnabled(false);
+        showToast.success("Notifikasi dinonaktifkan");
+      } else {
+        // Enable: request permission and subscribe
+        const permission = await manager.requestPermission();
+
+        if (permission === "granted") {
+          await manager.subscribe();
+          setIsEnabled(true);
+          showToast.success("Notifikasi diaktifkan");
+        } else if (permission === "denied") {
+          showToast.error(
+            "Izin notifikasi ditolak. Silakan aktifkan di pengaturan browser.",
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Failed to toggle notifications:", error);
+      showToast.error("Gagal mengubah pengaturan notifikasi");
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  if (!isSupported) {
+    return (
+      <div className="flex items-center justify-between px-5 py-4 opacity-50">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: "rgba(31,35,117,0.07)" }}
+          >
+            <svg
+              className="w-5 h-5 text-[#1F2375]"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <path
+                d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-neutral-03">
+              Notifikasi Push
+            </p>
+            <p className="text-xs text-grey mt-0.5">
+              Tidak didukung di browser ini
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between px-5 py-4">
+      <div className="flex items-center gap-3">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: "rgba(31,35,117,0.07)" }}
+        >
+          <svg
+            className="w-5 h-5 text-[#1F2375]"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path
+              d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
+              fill="currentColor"
+            />
+          </svg>
+        </div>
+        <div className="text-left">
+          <p className="text-sm font-semibold text-neutral-03">
+            Notifikasi Push
+          </p>
+          <p className="text-xs text-grey mt-0.5">
+            {isLoading
+              ? "Memuat..."
+              : isEnabled
+                ? "Work order baru & update status"
+                : "Nonaktif"}
+          </p>
+        </div>
+      </div>
+
+      {/* Toggle Switch */}
+      <button
+        onClick={handleToggle}
+        disabled={isLoading || isToggling}
+        className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+          isEnabled ? "bg-[#1F2375]" : "bg-neutral-200"
+        } ${isLoading || isToggling ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 ${
+            isEnabled ? "translate-x-6" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
+  );
+};
+
+// ─── Analytics Toggle ─────────────────────────────────────────────────────────
+
+const AnalyticsToggle: React.FC = () => {
+  const [enabled, setEnabled] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setEnabled(isAnalyticsEnabled());
+    setMounted(true);
+  }, []);
+
+  const handleToggle = () => {
+    const next = !enabled;
+    setEnabled(next);
+    setAnalyticsEnabled(next);
+    showToast.success(
+      next ? "Analitik notifikasi diaktifkan" : "Analitik notifikasi dimatikan",
+    );
+  };
+
+  return (
+    <div className="flex items-center justify-between px-5 py-4">
+      <div className="flex items-center gap-3">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: "rgba(31,35,117,0.07)" }}
+        >
+          <svg
+            className="w-5 h-5 text-[#1F2375]"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path
+              d="M3 3v18h18M7 14l4-4 4 4 5-5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <div className="text-left">
+          <p className="text-sm font-semibold text-neutral-03">
+            Analitik Notifikasi
+          </p>
+          <p className="text-xs text-grey mt-0.5">
+            {mounted
+              ? enabled
+                ? "Bantu kami meningkatkan pengalaman"
+                : "Tidak dikirim ke server"
+              : "Memuat..."}
+          </p>
+        </div>
+      </div>
+
+      <button
+        onClick={handleToggle}
+        disabled={!mounted}
+        className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+          enabled ? "bg-[#1F2375]" : "bg-neutral-200"
+        } ${!mounted ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 ${
+            enabled ? "translate-x-6" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
+  );
+};
+
 // ─── Main Template ────────────────────────────────────────────────────────────
 
 const ProfilTemplate: React.FC = () => {
@@ -508,6 +740,16 @@ const ProfilTemplate: React.FC = () => {
               />
             </svg>
           </button>
+        </div>
+
+        {/* ── Notifikasi ── */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-neutral-100">
+            <h2 className="text-sm font-bold text-neutral-03">Notifikasi</h2>
+          </div>
+          <NotificationToggle userId={user.id} />
+          <div className="h-px bg-neutral-100" />
+          <AnalyticsToggle />
         </div>
 
         {/* ── Logout ── */}

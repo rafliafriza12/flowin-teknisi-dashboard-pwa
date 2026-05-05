@@ -179,7 +179,7 @@ function useImageUpload(folder: string) {
         const result = await uploadToCloudinary(
           file,
           uploadOptions,
-          (p) => setUploadProgress(p),
+          (progress) => setUploadProgress(progress.percentage),
           abortController.signal,
         );
         return result.secure_url;

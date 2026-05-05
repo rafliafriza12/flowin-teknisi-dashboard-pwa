@@ -82,8 +82,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       const result = await uploadToCloudinary(
         file,
         uploadOptions,
-        (p) => setProgress(p),
-        abortController.signal
+        (progress) => setProgress(progress.percentage),
+        abortController.signal,
       );
 
       onChange(result.secure_url);

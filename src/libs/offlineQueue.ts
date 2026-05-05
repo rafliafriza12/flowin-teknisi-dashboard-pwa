@@ -7,9 +7,11 @@
  * 3. Saat kembali online, queue diproses: upload foto → panggil mutasi
  */
 
-const DB_NAME = "flowin-teknisi-offline";
-const DB_VERSION = 1;
-const STORE_UPLOADS = "pendingUploads";
+import { compressImage } from "./imageCompression";
+import { openDB, STORE_UPLOADS } from "./indexedDBMigration";
+import { registerOfflineSync } from "./backgroundSync";
+
+const MAX_QUEUE_SIZE = 100;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,48 +49,65 @@ export interface PendingUploadItem {
   status: PendingItemStatus;
   errorMessage?: string;
   retryCount: number;
+  /**
+   * Data konflik yang terdeteksi saat sinkronisasi (HTTP 409).
+   * Berisi data dari server dan timestamp deteksi untuk resolusi konflik.
+   * @see Requirements 2.7, 12.1
+   */
+  conflictData?: {
+    /** Data dari server yang konflik dengan data lokal */
+    serverData: Record<string, unknown>;
+    /** Timestamp saat konflik terdeteksi */
+    detectedAt: number;
+  };
+  /**
+   * Timestamp percobaan sinkronisasi terakhir.
+   * Digunakan untuk tracking retry attempts dan exponential backoff.
+   * @see Requirements 2.7, 12.1
+   */
+  lastSyncAttempt?: number;
 }
 
 // ─── DB Init ──────────────────────────────────────────────────────────────────
 
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function getDB(): Promise<IDBDatabase> {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("IndexedDB tidak tersedia di server"));
-  }
-
-  if (dbPromise) return dbPromise;
-
-  dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_UPLOADS)) {
-        const store = db.createObjectStore(STORE_UPLOADS, { keyPath: "id" });
-        store.createIndex("status", "status", { unique: false });
-        store.createIndex("workOrderId", "workOrderId", { unique: false });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-
-  return dbPromise;
-}
+// DB initialization is now handled by indexedDBMigration.ts
+// This ensures consistent database versioning across all modules
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
-/** Tambah item baru ke queue */
+/**
+ * Tambah item baru ke queue
+ *
+ * Compresses images > 2MB before storing to IndexedDB to save storage space.
+ * **Validates: Requirements 3.6**
+ */
 export async function addPendingItem(
   item: Omit<PendingUploadItem, "id" | "createdAt" | "retryCount" | "status">,
 ): Promise<string> {
-  const db = await getDB();
+  // Check queue size limit before adding
+  const currentCount = await countPendingItems();
+  if (currentCount >= MAX_QUEUE_SIZE) {
+    throw new Error(
+      `Queue penuh (${MAX_QUEUE_SIZE} item). Harap sinkronkan data offline terlebih dahulu.`,
+    );
+  }
+
+  // Compress images > 2MB before storing
+  const compressedImages: PendingImageRef[] = await Promise.all(
+    item.pendingImages.map(async (imageRef) => {
+      const compressedFile = await compressImage(imageRef.file, 2);
+      return {
+        ...imageRef,
+        file: compressedFile,
+      };
+    }),
+  );
+
+  const db = await openDB();
   const id = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const record: PendingUploadItem = {
     ...item,
+    pendingImages: compressedImages,
     id,
     createdAt: Date.now(),
     status: "pending",
@@ -99,7 +118,11 @@ export async function addPendingItem(
     const tx = db.transaction(STORE_UPLOADS, "readwrite");
     const store = tx.objectStore(STORE_UPLOADS);
     const req = store.add(record);
-    req.onsuccess = () => resolve(id);
+    req.onsuccess = () => {
+      // Best-effort: register background sync so the SW retries when online.
+      registerOfflineSync().catch(() => undefined);
+      resolve(id);
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -108,7 +131,7 @@ export async function addPendingItem(
 export async function getPendingItems(
   status: PendingItemStatus = "pending",
 ): Promise<PendingUploadItem[]> {
-  const db = await getDB();
+  const db = await openDB();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_UPLOADS, "readonly");
@@ -122,7 +145,7 @@ export async function getPendingItems(
 
 /** Ambil semua item yang belum selesai (pending + error yang masih bisa retry) */
 export async function getAllActivePendingItems(): Promise<PendingUploadItem[]> {
-  const db = await getDB();
+  const db = await openDB();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_UPLOADS, "readonly");
@@ -146,11 +169,16 @@ export async function updatePendingItem(
   updates: Partial<
     Pick<
       PendingUploadItem,
-      "status" | "errorMessage" | "retryCount" | "progresPayload"
+      | "status"
+      | "errorMessage"
+      | "retryCount"
+      | "progresPayload"
+      | "conflictData"
+      | "lastSyncAttempt"
     >
   >,
 ): Promise<void> {
-  const db = await getDB();
+  const db = await openDB();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_UPLOADS, "readwrite");
@@ -170,7 +198,7 @@ export async function updatePendingItem(
 
 /** Hapus item dari queue (setelah berhasil sync) */
 export async function removePendingItem(id: string): Promise<void> {
-  const db = await getDB();
+  const db = await openDB();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_UPLOADS, "readwrite");
@@ -183,7 +211,7 @@ export async function removePendingItem(id: string): Promise<void> {
 
 /** Hitung total item yang masih pending */
 export async function countPendingItems(): Promise<number> {
-  const db = await getDB();
+  const db = await openDB();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_UPLOADS, "readonly");
