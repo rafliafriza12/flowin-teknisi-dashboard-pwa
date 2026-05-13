@@ -77,9 +77,8 @@ export async function getUnresolvedConflicts(): Promise<
     const tx = db.transaction(STORE_CONFLICT_RESOLUTIONS, "readonly");
     const store = tx.objectStore(STORE_CONFLICT_RESOLUTIONS);
     const index = store.index("resolved");
-    const req = index.getAll(IDBKeyRange.only(false));
-    req.onsuccess = () =>
-      resolve(req.result as ConflictResolutionRecord[]);
+    const req = index.getAll(IDBKeyRange.only(0)); // Get where resolved = false (stored as 0)
+    req.onsuccess = () => resolve(req.result as ConflictResolutionRecord[]);
     req.onerror = () =>
       reject(
         new Error(

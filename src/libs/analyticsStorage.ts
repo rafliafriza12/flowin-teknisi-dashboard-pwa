@@ -101,7 +101,7 @@ export async function getUnsyncedEvents(): Promise<AnalyticsEvent[]> {
     const tx = db.transaction(STORE_ANALYTICS_EVENTS, "readonly");
     const store = tx.objectStore(STORE_ANALYTICS_EVENTS);
     const index = store.index("synced");
-    const req = index.getAll(IDBKeyRange.only(false)); // Get where synced = false
+    const req = index.getAll(IDBKeyRange.only(0)); // Get where synced = false (stored as 0)
 
     req.onsuccess = () => {
       resolve(req.result as AnalyticsEvent[]);

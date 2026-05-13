@@ -276,7 +276,7 @@ export async function getUnreadCount(): Promise<number> {
     const tx = db.transaction(STORE_NOTIFICATION_HISTORY, "readonly");
     const store = tx.objectStore(STORE_NOTIFICATION_HISTORY);
     const index = store.index("read");
-    const req = index.count(IDBKeyRange.only(false)); // Count where read = false
+    const req = index.count(IDBKeyRange.only(0)); // Count where read = false (stored as 0)
 
     req.onsuccess = () => resolve(req.result);
     req.onerror = () =>
