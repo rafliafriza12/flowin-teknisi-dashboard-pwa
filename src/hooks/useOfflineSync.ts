@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   getAllActivePendingItems,
   countPendingItems,
@@ -12,6 +13,7 @@ import {
 import { uploadToCloudinary } from "@/libs/cloudinary";
 import { graphqlAction } from "@/libs/graphql/actions";
 import { SIMPAN_PROGRES, KIRIM_HASIL } from "@/libs/graphql/mutations";
+import { queryKeys } from "@/libs/graphql";
 import type { IWorkOrderMutationResponse } from "@/types/workOrder";
 import { GraphQLRequestError } from "@/libs/graphql/utils";
 import {
@@ -152,6 +154,10 @@ function extractConflict(
 
 export function useOfflineSync(): OfflineSyncState {
   const isOnline = useOnlineStatus();
+  const queryClient = useQueryClient();
+  const queryClientRef = useRef(queryClient);
+  queryClientRef.current = queryClient;
+
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | undefined>(
@@ -269,6 +275,17 @@ export function useOfflineSync(): OfflineSyncState {
 
         // 5. Hapus dari queue
         await removePendingItem(item.id);
+
+        // 6. Invalidate TanStack Query cache agar UI langsung menampilkan data terbaru
+        queryClientRef.current.invalidateQueries({
+          queryKey: queryKeys.workOrders.progres(item.workOrderId),
+        });
+        queryClientRef.current.invalidateQueries({
+          queryKey: queryKeys.workOrders.detail(item.workOrderId),
+        });
+        queryClientRef.current.invalidateQueries({
+          queryKey: queryKeys.workOrders.all,
+        });
       } catch (error) {
         const conflict = extractConflict(error);
         const message = error instanceof Error ? error.message : "Sync gagal";
@@ -295,7 +312,10 @@ export function useOfflineSync(): OfflineSyncState {
           });
 
           setPendingConflict({
-            item: { ...item, conflictData: { ...conflict, detectedAt: Date.now() } },
+            item: {
+              ...item,
+              conflictData: { ...conflict, detectedAt: Date.now() },
+            },
             serverData: conflict.serverData,
           });
           throw error;

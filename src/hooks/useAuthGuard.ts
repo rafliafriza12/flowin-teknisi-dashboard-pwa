@@ -14,7 +14,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getClientSession, ALLOWED_ROLE } from "@/libs/authSession";
 
@@ -32,10 +32,10 @@ export function useAuthGuard(): AuthGuardState {
     role: null,
   });
 
-  useEffect(() => {
+  const checkSession = useCallback(() => {
     const session = getClientSession();
 
-    // Tidak ada sesi → arahkan ke login (jalan offline, tanpa request server).
+    // Tidak ada sesi / kedaluwarsa → arahkan ke login.
     if (!session) {
       setState({ status: "unauthorized", role: null });
       router.replace("/login");
@@ -51,6 +51,29 @@ export function useAuthGuard(): AuthGuardState {
 
     setState({ status: "authorized", role: session.role });
   }, [router]);
+
+  useEffect(() => {
+    // Cek pertama kali mount
+    checkSession();
+
+    // Re-cek saat tab menjadi aktif kembali (mis. device 1 dibuka setelah
+    // device 2 login & backend me-rotate refresh token). Dengan ini, bahkan
+    // sebelum query sempat jalan, guard sudah mendeteksi sesi tidak valid
+    // (karena clearClientSession() sudah dipanggil oleh QueryProvider) dan
+    // langsung redirect ke /login — tidak ada layar kosong.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") checkSession();
+    };
+    const handleFocus = () => checkSession();
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [checkSession]);
 
   return state;
 }

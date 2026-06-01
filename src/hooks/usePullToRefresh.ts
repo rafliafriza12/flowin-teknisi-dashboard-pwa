@@ -91,14 +91,12 @@ export function usePullToRefresh({
 
       // Only track downward pulls
       if (distance > 0) {
+        // Prevent browser's native pull-to-refresh immediately on any downward pull
+        e.preventDefault();
+
         // Apply resistance to the pull (diminishing returns)
         const resistedDistance = Math.min(distance * 0.5, threshold * 1.5);
         setPullDistance(resistedDistance);
-
-        // Prevent default scroll behavior when pulling
-        if (distance > 10) {
-          e.preventDefault();
-        }
       }
     };
 

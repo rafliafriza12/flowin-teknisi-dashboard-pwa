@@ -22,22 +22,16 @@ const withPWA = withPWAInit({
     // SKIP_WAITING di sw-custom.js yang mengontrol kapan SW baru aktif.
     // (AUDIT_OFFLINE_FIRST.md W1/M5)
     skipWaiting: false,
-    // ── Navigation fallback: app shell "/" ──────────────────────────────────
-    // Semua halaman privat kini client-rendered shell yang identik. Saat
-    // navigasi offline ke rute yang HTML-nya belum tercache (mis. buka langsung
-    // /pekerjaan setelah cold start), kembalikan shell "/" yang SUDAH di-precache,
-    // lalu router client merender halaman yang benar. Ini menggantikan fallback
-    // ke /offline untuk rute privat. (AUDIT_OFFLINE_FIRST.md B2/B3)
-    navigateFallback: "/",
-    // Jangan fallback ke shell untuk aset, API, auth, & halaman offline itu sendiri.
-    navigateFallbackDenylist: [
-      /^\/api\//,
-      /^\/_next\//,
-      /^\/login/,
-      /^\/access-denied/,
-      /^\/offline$/,
-      /\.[^/]+$/, // request dengan ekstensi file (aset)
-    ],
+    // ── Navigation fallback: DIHAPUS ────────────────────────────────────────
+    // navigateFallback: "/" yang lama menyebabkan Workbox mendaftarkan
+    // NavigationRoute PERTAMA di sw.js. Route ini menang untuk SEMUA navigate
+    // request (termasuk /pekerjaan, /profile, dll) bahkan saat ONLINE → browser
+    // selalu mendapat HTML shell "/" dan merender konten dashboard.
+    // Tanpa navigateFallback, route NetworkFirst di runtimeCaching di bawah
+    // menangani navigasi secara benar:
+    //   - Online  → fetch dari server, cache hasilnya
+    //   - Offline → serve dari cache (jika pernah dikunjungi), atau error graceful
+    // (AUDIT_OFFLINE_FIRST.md B2/B3)
     // Import custom push notification handlers
     importScripts: ["/sw-custom.js"],
     runtimeCaching: [
@@ -100,15 +94,8 @@ const withPWA = withPWAInit({
       // menangkap semua https (yang dulu meng-evict halaman app & menelan
       // aset cross-origin). (AUDIT_OFFLINE_FIRST.md C2)
       {
-        urlPattern: ({
-          request,
-          url,
-        }: {
-          request: Request;
-          url: URL;
-        }) =>
-          request.mode === "navigate" &&
-          url.origin === self.location.origin,
+        urlPattern: ({ request, url }: { request: Request; url: URL }) =>
+          request.mode === "navigate" && url.origin === self.location.origin,
         handler: "NetworkFirst",
         options: {
           cacheName: "flowin-page-cache",

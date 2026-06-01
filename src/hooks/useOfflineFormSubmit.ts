@@ -119,15 +119,18 @@ export function useOfflineFormSubmit(
         resolvedUrls.set(image.fieldKey, result.secure_url);
       }
 
-      // 2. Apply URLs to payload
+      // 2. Apply URLs to payload — mendukung flat field dan array field
+      //    (mis. urlGambar_0, fotoSebelum_1, fotoSetelah_0, dst.)
       const finalPayload = { ...payload };
       for (const [fieldKey, url] of resolvedUrls) {
-        if (fieldKey.startsWith("urlGambar_")) {
-          const idx = parseInt(fieldKey.replace("urlGambar_", ""), 10);
-          if (!Array.isArray(finalPayload.urlGambar)) {
-            finalPayload.urlGambar = [];
+        const arrayMatch = fieldKey.match(/^(.+)_(\d+)$/);
+        if (arrayMatch) {
+          const arrayFieldName = arrayMatch[1];
+          const idx = parseInt(arrayMatch[2], 10);
+          if (!Array.isArray(finalPayload[arrayFieldName])) {
+            finalPayload[arrayFieldName] = [];
           }
-          (finalPayload.urlGambar as string[])[idx] = url;
+          (finalPayload[arrayFieldName] as string[])[idx] = url;
         } else {
           finalPayload[fieldKey] = url;
         }

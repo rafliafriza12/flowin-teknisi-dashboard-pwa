@@ -1,8 +1,6 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { decodeJwt } from "jose";
 
 import {
@@ -247,12 +245,29 @@ export async function graphqlAction<T>(
       result = await makeRequest(newToken);
       refreshed = true;
     } catch (err) {
-      // Biarkan redirect error Next.js tetap propagate (jangan di-swallow)
-      if (isRedirectError(err)) throw err;
-      // Refresh token expired/invalid → redirect ke login
+      // Refresh token expired/invalid → akan dilempar sebagai auth error di bawah
     }
     if (!refreshed) {
-      redirect("/login");
+      // Bersihkan semua cookies sesi server-side agar state konsisten.
+      // Kemudian lempar auth error — QueryProvider.handleAuthError yang akan
+      // melakukan navigasi ke /login via window.location.href (lebih reliabel
+      // daripada redirect() di dalam queryFn TanStack Query, karena redirect()
+      // melempar NEXT_REDIRECT yang dapat tertelan oleh React Query sebelum
+      // Next.js sempat memprosesnya, menyebabkan layar kosong).
+      try {
+        await clearAuthCookies();
+      } catch {
+        // best-effort
+      }
+      const authErr = Object.assign(
+        new Error("Session expired. Please login again."),
+        {
+          code: "UNAUTHENTICATED",
+          statusCode: 401,
+          isAuthError: true,
+        },
+      );
+      throw authErr;
     }
   }
 

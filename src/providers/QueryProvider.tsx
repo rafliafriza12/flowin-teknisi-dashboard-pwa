@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState, type ReactNode } from "react";
 import { queryPersister } from "@/libs/queryPersister";
 import { clearAuthCookies } from "@/libs/graphql";
+import { clearClientSession } from "@/libs/authSession";
 
 // Durasi cache yang dipersist di IndexedDB: 24 jam
 const CACHE_MAX_AGE = 1000 * 60 * 60 * 24;
@@ -70,6 +71,13 @@ export function QueryProvider({ children }: { children: ReactNode }) {
           // best-effort
         }
         try {
+          // Hapus flowin_session client-readable agar useAuthGuard langsung
+          // melihat "tidak ada sesi" — tidak perlu tunggu Set-Cookie dari server.
+          clearClientSession();
+        } catch {
+          // best-effort
+        }
+        try {
           client.clear();
           await queryPersister.removeClient();
         } catch {
@@ -84,9 +92,15 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       mutationCache: new MutationCache({ onError: handleAuthError }),
       defaultOptions: {
         queries: {
-          staleTime: 60 * 1000, // 1 menit — data dianggap fresh
-          gcTime: CACHE_MAX_AGE, // Simpan di memory cache selama 24 jam
-          refetchOnWindowFocus: false,
+          // staleTime: 0 → data SELALU dianggap stale.
+          // TanStack Query akan background-refetch setiap kali query di-mount
+          // atau window mendapat fokus kembali, SAMBIL tetap menampilkan data
+          // dari cache secara instan (no loading flash).
+          // Pola "stale-while-revalidate" — ideal untuk offline-first.
+          staleTime: 0,
+          gcTime: CACHE_MAX_AGE, // Simpan di memory & IndexedDB selama 24 jam
+          refetchOnWindowFocus: true, // Refresh saat user kembali ke tab
+          refetchOnReconnect: true, // Refresh saat koneksi pulih
           // Saat offline, gunakan data stale dari cache tanpa retry
           networkMode: "offlineFirst",
         },

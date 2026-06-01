@@ -234,9 +234,19 @@ export async function countPendingItems(): Promise<number> {
 /**
  * Terapkan URL yang sudah diupload ke progresPayload.
  *
- * Contoh:
- * - fieldKey "urlJaringan" → payload.urlJaringan = url
- * - fieldKey "urlGambar_0" → (payload.urlGambar as string[])[0] = url
+ * Mendukung dua pola fieldKey:
+ *
+ * 1. **Flat field** — `"urlJaringan"`, `"fotoRumah"`, `"urlRab"`, dst.
+ *    → `payload.urlJaringan = url`
+ *
+ * 2. **Array field** — `"<namaField>_<idx>"`, mis.:
+ *    - `"urlGambar_0"`, `"urlGambar_1"` → `payload.urlGambar[0]`, `[1]`
+ *    - `"fotoSebelum_0"`, `"fotoSebelum_1"` → `payload.fotoSebelum[0]`, `[1]`
+ *    - `"fotoSetelah_0"` → `payload.fotoSetelah[0]`
+ *
+ * Pola ini harus konsisten dengan cara `pendingFilesMap` mengassign fieldKey
+ * di `PengerjaanSection.tsx` (mis. `urlGambar_${nextIndex}`,
+ * `fotoSebelum_${nextIdx}`, `fotoSetelah_${nextIdx}`).
  */
 export function applyResolvedUrls(
   payload: Record<string, unknown>,
@@ -245,13 +255,17 @@ export function applyResolvedUrls(
   const result = structuredClone(payload) as Record<string, unknown>;
 
   for (const [fieldKey, url] of resolvedUrls) {
-    if (fieldKey.startsWith("urlGambar_")) {
-      const idx = parseInt(fieldKey.replace("urlGambar_", ""), 10);
-      if (!Array.isArray(result.urlGambar)) {
-        result.urlGambar = [];
+    // Deteksi pola "<namaField>_<angka>" — untuk semua array field.
+    const arrayMatch = fieldKey.match(/^(.+)_(\d+)$/);
+    if (arrayMatch) {
+      const arrayFieldName = arrayMatch[1]; // mis. "urlGambar", "fotoSebelum", "fotoSetelah"
+      const idx = parseInt(arrayMatch[2], 10);
+      if (!Array.isArray(result[arrayFieldName])) {
+        result[arrayFieldName] = [];
       }
-      (result.urlGambar as string[])[idx] = url;
+      (result[arrayFieldName] as string[])[idx] = url;
     } else {
+      // Flat field: langsung assign ke top-level key
       result[fieldKey] = url;
     }
   }

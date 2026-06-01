@@ -56,3 +56,17 @@ export function hasValidSession(): boolean {
 export function isTechnician(): boolean {
   return getClientSession()?.role === ALLOWED_ROLE;
 }
+
+/**
+ * Hapus cookie sinyal sesi client-readable secara client-side (js-cookie).
+ *
+ * Dipanggil saat handler 401 global mendeteksi sesi tidak valid — agar
+ * `useAuthGuard` langsung melihat "tidak ada sesi" pada pengecekan berikutnya,
+ * tanpa harus menunggu respons Set-Cookie dari server.
+ *
+ * Aman dipanggil saat SSR (no-op).
+ */
+export function clearClientSession(): void {
+  if (typeof document === "undefined") return;
+  Cookies.remove(SESSION_HINT_COOKIE, { path: "/" });
+}

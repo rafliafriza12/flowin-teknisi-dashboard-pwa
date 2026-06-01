@@ -2184,23 +2184,79 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
   const queueOffline = async (type: PendingItemType) => {
     const payload = getPayload();
 
-    // Untuk field yang masih blob URL (offline pending), ganti ke null
-    // supaya payload bisa di-serialize dan nanti diisi URL real saat sync
+    // Mapping balik: blob URL (previewUrl) → PendingFileEntry
+    // Digunakan untuk mencocokkan blob URL di payload dengan file yang tersimpan.
+    const blobToEntry = new Map<string, PendingFileEntry>();
+    for (const entry of pendingFilesMap.values()) {
+      if (entry.previewUrl?.startsWith("blob:")) {
+        blobToEntry.set(entry.previewUrl, entry);
+      }
+    }
+
+    // Bangun pendingImages berdasarkan POSISI AKTUAL blob URL di payload —
+    // bukan kunci lama di pendingFilesMap yang mungkin sudah stale setelah
+    // user menghapus gambar (index drift). Ini memastikan indeks fieldKey
+    // selalu konsisten dengan posisi array di cleanPayload.
+    const pendingImages: PendingImageRef[] = [];
+
+    // Scan field array (urlGambar, fotoSebelum, fotoSetelah).
+    // compactIdx = posisi di array SETELAH blob-cleaning (sama dengan posisi di cleanPayload).
+    const collectArrayField = (fieldName: string) => {
+      const arr = (payload as Record<string, unknown>)[fieldName];
+      if (!Array.isArray(arr)) return;
+      let compactIdx = 0;
+      for (const item of arr as unknown[]) {
+        if (typeof item === "string" && item.startsWith("blob:")) {
+          const entry = blobToEntry.get(item);
+          if (entry) {
+            pendingImages.push({
+              fieldKey: `${fieldName}_${compactIdx}`,
+              file: entry.file,
+              cloudinaryFolder: entry.cloudinaryFolder,
+              tags: entry.tags,
+            });
+          }
+        }
+        if (item !== null && item !== undefined) compactIdx++;
+      }
+    };
+
+    // Scan flat string field (urlJaringan, urlRab, fotoRumah, dst.)
+    const collectFlatField = (fieldName: string) => {
+      const val = (payload as Record<string, unknown>)[fieldName];
+      if (typeof val !== "string" || !val.startsWith("blob:")) return;
+      // Cari file berdasarkan blob URL, fallback ke kunci fieldName
+      const entry = blobToEntry.get(val) ?? pendingFilesMap.get(fieldName);
+      if (entry) {
+        pendingImages.push({
+          fieldKey: fieldName,
+          file: entry.file,
+          cloudinaryFolder: entry.cloudinaryFolder,
+          tags: entry.tags,
+        });
+      }
+    };
+
+    // ── Array fields ──
+    collectArrayField("urlGambar"); // pengawasan_pemasangan, pengawasan_setelah_pemasangan, penyelesaian_laporan
+    collectArrayField("fotoSebelum"); // maintenance
+    collectArrayField("fotoSetelah"); // maintenance
+
+    // ── Flat fields ──
+    collectFlatField("urlJaringan"); // survei
+    collectFlatField("urlPosisiBak"); // survei
+    collectFlatField("posisiMeteran"); // survei
+    collectFlatField("urlRab"); // rab
+    collectFlatField("fotoRumah"); // pemasangan
+    collectFlatField("fotoMeteran"); // pemasangan
+    collectFlatField("fotoMeteranDanRumah"); // pemasangan
+
+    // Bersihkan blob URL → null agar payload bisa di-serialize ke IndexedDB
     const cleanPayload = JSON.parse(
       JSON.stringify(payload, (_, v) =>
         typeof v === "string" && v.startsWith("blob:") ? null : v,
       ),
     ) as Record<string, unknown>;
-
-    // Kumpulkan semua pending image refs
-    const pendingImages: PendingImageRef[] = Array.from(
-      pendingFilesMap.entries(),
-    ).map(([fieldKey, entry]) => ({
-      fieldKey,
-      file: entry.file,
-      cloudinaryFolder: entry.cloudinaryFolder,
-      tags: entry.tags,
-    }));
 
     await addPendingItem({
       workOrderId: workOrder.id,
