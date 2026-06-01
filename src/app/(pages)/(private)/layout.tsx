@@ -1,47 +1,27 @@
+"use client";
+
 import MainLayout from "@/components/templates/layouts/MainLayout";
-import { SidebarProvider } from "@/providers/SidebarProvider";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { jwtVerify } from "jose";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
-type RoleName = "Admin" | "Technician" | "User";
+/**
+ * Layout halaman privat — kini **client component** agar app shell bisa
+ * dirender & dijaga saat offline (lihat AUDIT_OFFLINE_FIRST.md B1/B3).
+ *
+ * Auth gate dijalankan di client via useAuthGuard (membaca cookie sesi
+ * client-readable). Tidak ada lagi redirect server-side yang membuat halaman
+ * privat tak bisa diakses offline. Otorisasi sebenarnya tetap dijaga backend.
+ */
+const PrivateLayout = ({ children }: { children: React.ReactNode }) => {
+  const { status } = useAuthGuard();
 
-interface JwtPayload {
-  userId: string;
-  email: string;
-  role: RoleName;
-  type: "access" | "refresh";
-}
-
-const PrivateLayout = async ({ children }: { children: React.ReactNode }) => {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
-  const refreshToken = cookieStore.get("refresh_token")?.value;
-
-  // Tidak punya token → login
-  if (!token && !refreshToken) {
-    redirect("/login");
+  // Saat tidak ada sesi / role salah, guard sudah me-replace rute.
+  // Tampilkan placeholder kosong agar konten privat tak sempat ter-render.
+  if (status === "unauthorized") {
+    return null;
   }
 
-  // Punya access token → verify signature + cek role
-  if (token) {
-    try {
-      const secret = new TextEncoder().encode(process.env.JWT_ACCESS_SECRET);
-      const { payload } = await jwtVerify(token, secret);
-      const jwtPayload = payload as unknown as JwtPayload;
-
-      if (jwtPayload.role !== "Technician") {
-        redirect(`/access-denied?role=${jwtPayload.role}`);
-      }
-    } catch {
-      // Token expired / invalid — tapi masih punya refresh token?
-      // Biarkan lewat, client-side (useMe / graphqlAction) akan auto refresh
-      if (!refreshToken) {
-        redirect("/login");
-      }
-    }
-  }
-
+  // status "checking" maupun "authorized" → render shell.
+  // Shell + chunk JS sudah di-precache SW, sehingga tampil walau offline.
   return <MainLayout>{children}</MainLayout>;
 };
 

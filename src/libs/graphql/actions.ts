@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
+import { decodeJwt } from "jose";
 
 import {
   GRAPHQL_ENDPOINT,
@@ -11,6 +12,43 @@ import {
   isForbidErr,
 } from "./utils";
 import { generateSignatureHash } from "./signatureHash";
+
+/**
+ * Nama cookie sinyal sesi yang DAPAT dibaca client (non-httpOnly).
+ *
+ * BUKAN kredensial — hanya berisi `{ role, exp }` agar guard di client
+ * (lihat src/libs/authSession.ts & src/hooks/useAuthGuard.ts) bisa
+ * menampilkan / memblokir app shell **saat offline**, ketika middleware &
+ * server action tidak terjangkau. Otorisasi sebenarnya tetap dijaga backend
+ * via token httpOnly (`access_token`/`refresh_token`).
+ */
+const SESSION_HINT_COOKIE = "flowin_session";
+const SESSION_HINT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari, ikut refresh token
+
+/**
+ * Tulis cookie sinyal sesi non-httpOnly berdasarkan klaim `role` di access token.
+ * Best-effort: jika token tak bisa di-decode, cookie hint tidak ditulis
+ * (guard client akan menganggap belum login & mengarahkan ke /login).
+ */
+async function writeSessionHint(accessToken: string): Promise<void> {
+  try {
+    const payload = decodeJwt(accessToken);
+    const role = typeof payload.role === "string" ? payload.role : undefined;
+    if (!role) return;
+
+    const cookieStore = await cookies();
+    const exp = Date.now() + SESSION_HINT_MAX_AGE_MS;
+    cookieStore.set(SESSION_HINT_COOKIE, JSON.stringify({ role, exp }), {
+      httpOnly: false, // sengaja dapat dibaca client untuk guard offline
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      expires: new Date(exp),
+    });
+  } catch {
+    // decode gagal → lewati penulisan hint
+  }
+}
 
 // ============ REFRESH TOKEN (SERVER-SIDE) ============
 
@@ -81,6 +119,9 @@ async function refreshTokenAction(): Promise<string> {
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari
   });
 
+  // Perbarui sinyal sesi client-readable agar guard offline tetap valid.
+  await writeSessionHint(data.accessToken);
+
   return data.accessToken;
 }
 
@@ -106,6 +147,9 @@ export async function setAuthCookies(
     path: "/",
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari
   });
+
+  // Tulis sinyal sesi client-readable (untuk guard offline). Non-httpOnly.
+  await writeSessionHint(accessToken);
 }
 
 // Clear cookies pada logout
@@ -113,6 +157,7 @@ export async function clearAuthCookies(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete("access_token");
   cookieStore.delete("refresh_token");
+  cookieStore.delete(SESSION_HINT_COOKIE);
 }
 
 // ============ SERVER ACTIONS ============

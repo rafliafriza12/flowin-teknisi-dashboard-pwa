@@ -6,17 +6,38 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: false,
+  // start_url ("/") = app shell client-rendered tanpa data → aman di-precache
+  // sebagai entri statis, sehingga peluncuran offline menampilkan shell, bukan
+  // halaman /offline. (AUDIT_OFFLINE_FIRST.md B2)
+  cacheStartUrl: true,
+  dynamicStartUrl: false,
   // Dev: SW dimatikan agar tidak bentrok dengan Next.js HMR
   // Untuk test PWA di localhost → jalankan: pnpm build && pnpm start
   disable: process.env.NODE_ENV === "development",
-  // Fallback halaman saat navigasi offline & cache JS/CSS belum ada
-  fallbacks: {
-    document: "/offline",
-  },
   workboxOptions: {
     disableDevLogs: true,
     // Jangan cache request API/GraphQL & HMR
     exclude: [/\/api\//, /\/_next\/webpack-hmr/],
+    // Jangan auto-skipWaiting: biarkan ServiceWorkerUpdateBanner + handler
+    // SKIP_WAITING di sw-custom.js yang mengontrol kapan SW baru aktif.
+    // (AUDIT_OFFLINE_FIRST.md W1/M5)
+    skipWaiting: false,
+    // ── Navigation fallback: app shell "/" ──────────────────────────────────
+    // Semua halaman privat kini client-rendered shell yang identik. Saat
+    // navigasi offline ke rute yang HTML-nya belum tercache (mis. buka langsung
+    // /pekerjaan setelah cold start), kembalikan shell "/" yang SUDAH di-precache,
+    // lalu router client merender halaman yang benar. Ini menggantikan fallback
+    // ke /offline untuk rute privat. (AUDIT_OFFLINE_FIRST.md B2/B3)
+    navigateFallback: "/",
+    // Jangan fallback ke shell untuk aset, API, auth, & halaman offline itu sendiri.
+    navigateFallbackDenylist: [
+      /^\/api\//,
+      /^\/_next\//,
+      /^\/login/,
+      /^\/access-denied/,
+      /^\/offline$/,
+      /\.[^/]+$/, // request dengan ekstensi file (aset)
+    ],
     // Import custom push notification handlers
     importScripts: ["/sw-custom.js"],
     runtimeCaching: [
@@ -58,10 +79,36 @@ const withPWA = withPWAInit({
           },
         },
       },
-      // ── Halaman HTML: NetworkFirst 5 s timeout, 1 hari cache ─────────────
-      // (api/ & webpack-hmr sudah di-exclude di atas)
+      // ── Gambar Cloudinary: CacheFirst 30 hari (terpisah dari page-cache) ──
+      // Foto hasil upload work order. Dipisah agar tidak memakan slot
+      // page-cache & punya TTL sendiri. (AUDIT_OFFLINE_FIRST.md C2)
       {
-        urlPattern: /^https?.*/,
+        urlPattern: ({ url }: { url: URL }) =>
+          url.hostname.endsWith("cloudinary.com"),
+        handler: "CacheFirst",
+        options: {
+          cacheName: "flowin-cloudinary-cache",
+          expiration: {
+            maxEntries: 150,
+            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 hari
+          },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+      // ── Navigasi halaman (same-origin): NetworkFirst 5 s timeout ─────────
+      // HANYA request navigasi dokumen ke origin sendiri — tidak lagi
+      // menangkap semua https (yang dulu meng-evict halaman app & menelan
+      // aset cross-origin). (AUDIT_OFFLINE_FIRST.md C2)
+      {
+        urlPattern: ({
+          request,
+          url,
+        }: {
+          request: Request;
+          url: URL;
+        }) =>
+          request.mode === "navigate" &&
+          url.origin === self.location.origin,
         handler: "NetworkFirst",
         options: {
           cacheName: "flowin-page-cache",

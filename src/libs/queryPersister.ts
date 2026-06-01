@@ -2,8 +2,14 @@
  * queryPersister.ts
  *
  * Persister kustom untuk TanStack Query:
- * - Selalu MENULIS ke IndexedDB (agar data selalu fresh saat offline)
- * - Hanya MEMBACA dari IndexedDB ketika offline (agar online selalu fresh dari server)
+ * - Selalu MENULIS ke IndexedDB (agar data selalu siap dipakai saat offline)
+ * - Selalu MEMBACA dari IndexedDB saat startup (hydrate cache)
+ *
+ * Catatan offline-first (AUDIT_OFFLINE_FIRST.md S1): restore TIDAK lagi
+ * dikondisikan pada `navigator.onLine`. Menahan restore saat online membuat
+ * skenario "online → tiba-tiba offline" kehilangan data (cache tak pernah ter-
+ * hydrate). Saat online, `networkMode: "offlineFirst"` + `staleTime` di
+ * QueryProvider tetap memicu refetch background, jadi data segar tetap terjaga.
  */
 
 import { get, set, del } from "idb-keyval";
@@ -20,13 +26,8 @@ export const queryPersister: Persister = {
     await set(IDB_KEY, JSON.stringify(client));
   },
 
-  /** Hanya restore dari IndexedDB ketika sedang offline */
+  /** Selalu restore dari IndexedDB saat startup agar cache siap untuk offline */
   restoreClient: async (): Promise<PersistedClient | undefined> => {
-    // Saat online → tidak restore cache lama, biarkan query fetch fresh dari server
-    if (typeof navigator !== "undefined" && navigator.onLine) {
-      return undefined;
-    }
-    // Saat offline → gunakan cache IndexedDB
     const data = await get<string>(IDB_KEY);
     return data ? (JSON.parse(data) as PersistedClient) : undefined;
   },

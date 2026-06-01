@@ -1,22 +1,25 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { jwtVerify } from "jose";
+"use client";
 
-const AuthLayout = async ({ children }: { children: React.ReactNode }) => {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { hasValidSession } from "@/libs/authSession";
 
-  // Hanya redirect ke dashboard jika access_token VALID (signature + belum expired)
-  if (token) {
-    try {
-      const secret = new TextEncoder().encode(process.env.JWT_ACCESS_SECRET);
-      await jwtVerify(token, secret);
-      // Token valid → user sudah login, redirect ke dashboard
-      redirect("/");
-    } catch {
-      // Token expired / invalid → biarkan tampil halaman login
+/**
+ * Layout halaman auth (login, forgot/reset password) — client component.
+ *
+ * Dulu melakukan jwtVerify + redirect("/") di server, yang membuat halaman ini
+ * bergantung pada koneksi server dan berisiko redirect-loop saat offline.
+ * Kini pengecekan "sudah login?" dilakukan di client via cookie sesi: jika ada
+ * sesi valid, arahkan ke dashboard. Aman offline.
+ */
+const AuthLayout = ({ children }: { children: React.ReactNode }) => {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (hasValidSession()) {
+      router.replace("/");
     }
-  }
+  }, [router]);
 
   return (
     <div className="w-screen h-svh flex justify-center items-center bg-white-mineral font-parkinsans">

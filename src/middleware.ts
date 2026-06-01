@@ -46,6 +46,17 @@ const PWA_STATIC = [
   "/img/",
 ];
 
+/**
+ * Middleware ini adalah optimasi/hardening **online** saja.
+ *
+ * Sejak perbaikan offline-first (AUDIT_OFFLINE_FIRST.md), guard autentikasi
+ * yang DEFINITIF untuk UI ada di client (src/hooks/useAuthGuard.ts) sehingga
+ * app shell tetap bisa dirender offline. Saat offline, request navigasi
+ * di-serve Service Worker dari cache dan tidak pernah mencapai middleware ini —
+ * jadi middleware tidak boleh (dan tidak akan) menghalangi akses offline.
+ * Logika di bawah sengaja permisif: cukup ada refresh_token untuk lolos,
+ * client yang akan refresh/redirect bila perlu.
+ */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
