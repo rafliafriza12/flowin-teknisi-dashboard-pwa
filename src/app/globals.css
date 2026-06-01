@@ -92,15 +92,6 @@ button {
   cursor: pointer;
 }
 
-/* Disable browser's native pull-to-refresh on mobile (Chrome Android, etc).
-   usePullToRefresh hook provides a custom implementation instead.
-   overscroll-behavior-y: contain allows normal scrolling but blocks the
-   native "pull down to reload page" gesture. */
-html,
-body {
-  overscroll-behavior-y: contain;
-}
-
 .Toastify__toast {
   font-family: "Parkinsans", sans-serif !important;
   font-size: 14px !important;

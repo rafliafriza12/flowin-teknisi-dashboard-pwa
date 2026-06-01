@@ -14,8 +14,6 @@ import {
 } from "@/components/molecules/table";
 import StatusBadge from "@/components/atoms/StatusBadge";
 import StalenessIndicator from "@/components/atoms/StalenessIndicator";
-import PullToRefreshIndicator from "@/components/atoms/PullToRefreshIndicator";
-import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { StatusPekerjaan, JenisPekerjaan } from "@/types/workOrder";
 import {
   LABEL_STATUS_PEKERJAAN,
@@ -47,12 +45,7 @@ const PekerjaanListTemplate: React.FC = () => {
   const workOrders = data?.workOrdersSaya?.data || [];
   const pagination = data?.workOrdersSaya?.pagination;
 
-  // Pull-to-refresh functionality
-  const pullToRefresh = usePullToRefresh({
-    queryKey: queryKeys.workOrders.sayaFiltered(
-      filters as Record<string, unknown>,
-    ),
-  });
+  // Pull-to-refresh: dihapus — gunakan native browser pull-to-refresh
 
   const handleFilterChange = () => {
     setPage(1);
@@ -60,9 +53,6 @@ const PekerjaanListTemplate: React.FC = () => {
 
   return (
     <div className="w-full flex flex-col gap-5" data-scrollable>
-      {/* Pull-to-refresh indicator */}
-      <PullToRefreshIndicator {...pullToRefresh} />
-
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-neutral-03">Pekerjaan Saya</h1>

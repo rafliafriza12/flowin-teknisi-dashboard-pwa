@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useWorkOrder, useWorkflowChain } from "@/services/workOrderService";
 import StatusBadge from "@/components/atoms/StatusBadge";
 import StalenessIndicator from "@/components/atoms/StalenessIndicator";
-import PullToRefreshIndicator from "@/components/atoms/PullToRefreshIndicator";
-import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import {
   WorkflowChainTimeline,
   ResponAwalSection,
@@ -40,10 +38,7 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
     workOrder?.idKoneksiData ?? "",
   );
 
-  // Pull-to-refresh functionality
-  const pullToRefresh = usePullToRefresh({
-    queryKey: queryKeys.workOrders.detail(id),
-  });
+  // Pull-to-refresh: dihapus — gunakan native browser pull-to-refresh
 
   if (isLoading) {
     return (
@@ -79,8 +74,7 @@ const PekerjaanDetailTemplate: React.FC<PekerjaanDetailTemplateProps> = ({
 
   return (
     <div className="w-full flex flex-col gap-4" data-scrollable>
-      {/* Pull-to-refresh indicator */}
-      <PullToRefreshIndicator {...pullToRefresh} />
+      {/* Pull-to-refresh indicator dihapus — gunakan native browser */}
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
