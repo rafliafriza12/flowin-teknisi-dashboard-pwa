@@ -29,6 +29,7 @@ import {
   type PendingItemType,
 } from "@/libs/offlineQueue";
 import { useOfflineSyncContext } from "@/providers/OfflineSyncProvider";
+import BleProvisioningPanel from "@/components/molecules/workOrder/BleProvisioningPanel";
 
 // Leaflet hanya jalan di browser — load dinamis
 const KoordinatPicker = dynamic(
@@ -768,7 +769,11 @@ const FormPemasangan: React.FC<{
   data: PemasanganData;
   onChange: (data: PemasanganData) => void;
   workOrderId: string;
-}> = ({ data, onChange, workOrderId }) => {
+  /** ID pelanggan — dikirim ke IoT sebagai USER_ID */
+  pelangganId: string;
+  /** Dipanggil parent saat status provisioning BLE berubah */
+  onBleProvisionedChange: (provisioned: boolean) => void;
+}> = ({ data, onChange, workOrderId, pelangganId, onBleProvisionedChange }) => {
   const set = <K extends keyof PemasanganData>(
     key: K,
     value: PemasanganData[K],
@@ -812,6 +817,14 @@ const FormPemasangan: React.FC<{
           className={inputClass}
         />
       </div>
+
+      {/* Provisioning IoT — wajib selesai sebelum simpan/kirim */}
+      <BleProvisioningPanel
+        pelangganId={pelangganId}
+        seriMeteran={data.seriMeteran}
+        onProvisionedChange={onBleProvisionedChange}
+      />
+
       <div>
         <label className="text-xs font-medium text-neutral-03 mb-1 block">
           Foto Rumah
@@ -2022,6 +2035,9 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
     catatan: "",
   });
 
+  // BLE provisioning wajib selesai sebelum simpan/kirim untuk jenis pemasangan
+  const [bleProvisioned, setBleProvisioned] = useState(false);
+
   const [pengawasanData, setPengawasanData] = useState<PengawasanData>({
     urlGambar: [],
     catatan: "",
@@ -2276,6 +2292,13 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
   };
 
   const handleSimpanProgres = async () => {
+    // Guard BLE provisioning untuk jenis pemasangan
+    if (workOrder.jenisPekerjaan === "pemasangan" && !bleProvisioned) {
+      showToast.warning(
+        "Selesaikan provisioning IoT (BLE) terlebih dahulu sebelum menyimpan.",
+      );
+      return;
+    }
     // Offline atau ada pending files? → queue ke IndexedDB
     if (!isOnline || pendingFilesMap.size > 0) {
       try {
@@ -2302,6 +2325,13 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
   };
 
   const handleKirimHasil = async () => {
+    // Guard BLE provisioning untuk jenis pemasangan
+    if (workOrder.jenisPekerjaan === "pemasangan" && !bleProvisioned) {
+      showToast.warning(
+        "Selesaikan provisioning IoT (BLE) terlebih dahulu sebelum mengirim.",
+      );
+      return;
+    }
     const jenis = workOrder.jenisPekerjaan;
     if (
       (jenis === "pengawasan_pemasangan" ||
@@ -2400,6 +2430,8 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
                     data={pemasanganData}
                     onChange={setPemasanganData}
                     workOrderId={workOrder.id}
+                    pelangganId={workOrder.koneksiData?.pelanggan?.id ?? ""}
+                    onBleProvisionedChange={setBleProvisioned}
                   />
                 )}
                 {(workOrder.jenisPekerjaan === "pengawasan_pemasangan" ||
@@ -2428,7 +2460,11 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
                 <button
                   type="button"
                   onClick={handleSimpanProgres}
-                  disabled={isLoading}
+                  disabled={
+                    isLoading ||
+                    (workOrder.jenisPekerjaan === "pemasangan" &&
+                      !bleProvisioned)
+                  }
                   className="flex-1 px-4 py-2.5 rounded-lg border border-moss-stone text-moss-stone text-sm font-medium hover:bg-moss-stone/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {simpanProgresMutation.isPending
@@ -2441,7 +2477,11 @@ const PengerjaanSection: React.FC<PengerjaanSectionProps> = ({ workOrder }) => {
                   <button
                     type="button"
                     onClick={handleKirimHasil}
-                    disabled={isLoading}
+                    disabled={
+                      isLoading ||
+                      (workOrder.jenisPekerjaan === "pemasangan" &&
+                        !bleProvisioned)
+                    }
                     className="flex-1 px-4 py-2.5 rounded-lg bg-moss-stone text-white text-sm font-medium hover:bg-moss-stone/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {kirimHasilMutation.isPending
